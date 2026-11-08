@@ -527,7 +527,9 @@ function showPage(name) {
     targetPage.style.display = 'block';
   }
 
-  updateNavStyles(name === 'form' ? 'new' : name);
+  // 記事詳細は記事一覧の配下として扱い、ナビの見た目を記事一覧画面と同じにする
+  const NAV_KEY_BY_PAGE = { form: 'new', detail: 'list' };
+  updateNavStyles(NAV_KEY_BY_PAGE[name] || name);
 }
 
 // ナビゲーションボタンの配色
