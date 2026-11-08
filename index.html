@@ -368,9 +368,22 @@
           </div>
         </div>
 
-        <!-- Knowledge Cards List -->
-        <div id="knowledge-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-          <!-- Knowledge cards will be dynamically inserted here -->
+        <!-- Knowledge List (Table) -->
+        <div id="knowledge-list" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-gray-100 text-gray-700 border-b border-gray-200">
+              <tr>
+                <th scope="col" class="px-4 py-3 font-semibold min-w-[200px]">タイトル</th>
+                <th scope="col" class="px-4 py-3 font-semibold whitespace-nowrap">カテゴリ</th>
+                <th scope="col" class="px-4 py-3 font-semibold min-w-[280px]">内容のまとめ</th>
+                <th scope="col" class="px-4 py-3 font-semibold min-w-[160px]">タグ一覧</th>
+                <th scope="col" class="px-4 py-3 font-semibold whitespace-nowrap">更新日</th>
+              </tr>
+            </thead>
+            <tbody id="knowledge-list-body" class="divide-y divide-gray-200">
+              <!-- Rows will be dynamically inserted here -->
+            </tbody>
+          </table>
         </div>
 
         <!-- Empty State -->

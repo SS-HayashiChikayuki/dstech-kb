@@ -825,72 +825,76 @@ function renderKnowledgeList() {
 
   listEl.classList.remove('hidden');
   emptyState.classList.add('hidden');
-  listEl.innerHTML = '';
 
-  const template = document.getElementById('knowledge-card-template');
+  const tbody = document.getElementById('knowledge-list-body');
+  tbody.innerHTML = '';
+
+  const EXCERPT_LENGTH = 100;
 
   filtered.forEach(item => {
-    const clone = template.content.cloneNode(true);
-    const card = clone.querySelector('.knowledge-card');
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-gray-50 cursor-pointer transition focus:outline-none focus-visible:bg-blue-50';
+    row.tabIndex = 0;
+    row.setAttribute('aria-label', `${item.title} を開く`);
 
-    const firstImage = item.content.find(c => c.type === 'image');
-    if (firstImage && firstImage.value) {
-      const thumbnail = clone.querySelector('.knowledge-thumbnail');
-      const thumbnailImg = thumbnail.querySelector('img');
-      thumbnailImg.src = firstImage.value;
-      thumbnailImg.onerror = () => {
-        thumbnail.classList.add('hidden');
-        thumbnail.style.display = '';
-      };
-      thumbnail.classList.remove('hidden');
-      thumbnail.style.display = 'block';
-    }
+    // タイトル
+    const titleCell = document.createElement('td');
+    titleCell.className = 'px-4 py-3 font-semibold text-gray-900';
+    titleCell.textContent = item.title;
+    row.appendChild(titleCell);
 
-    clone.querySelector('.knowledge-title').textContent = item.title;
-
-    const categoryBadge = clone.querySelector('.category-badge');
+    // カテゴリ
+    const categoryCell = document.createElement('td');
+    categoryCell.className = 'px-4 py-3 whitespace-nowrap';
+    const categoryBadge = document.createElement('span');
+    categoryBadge.className = 'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap';
     categoryBadge.textContent = item.category;
-    categoryBadge.className = 'category-badge px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap';
     applyCategoryColor(categoryBadge, item.category);
+    categoryCell.appendChild(categoryBadge);
+    row.appendChild(categoryCell);
 
-    const excerpt = item.content
+    // 内容のまとめ（本文テキストの冒頭を1行にまとめて表示）
+    const excerptCell = document.createElement('td');
+    excerptCell.className = 'px-4 py-3 text-gray-600';
+    const fullText = (item.content || [])
       .filter(c => c.type === 'text')
       .map(c => c.value)
-      .join('\n')
-      .substring(0, 150);
-    const excerptEl = clone.querySelector('.knowledge-excerpt');
-    excerptEl.style.whiteSpace = 'pre-wrap';
-    excerptEl.textContent = excerpt + (excerpt.length >= 150 ? '...' : '');
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    excerptCell.textContent = fullText.length > EXCERPT_LENGTH
+      ? fullText.substring(0, EXCERPT_LENGTH) + '...'
+      : fullText;
+    if (fullText.length > EXCERPT_LENGTH) excerptCell.title = fullText;
+    row.appendChild(excerptCell);
 
-    const tagsContainer = clone.querySelector('.knowledge-tags');
-    tagsContainer.innerHTML = '';
-    (item.tags || []).slice(0, 3).forEach(tag => {
+    // タグ一覧
+    const tagsCell = document.createElement('td');
+    tagsCell.className = 'px-4 py-3';
+    const tagsWrap = document.createElement('div');
+    tagsWrap.className = 'flex flex-wrap gap-1';
+    (item.tags || []).forEach(tag => {
       const tagBadge = document.createElement('span');
-      tagBadge.className = 'tag-badge px-2 py-1 text-xs rounded-full';
+      tagBadge.className = 'tag-badge px-2 py-1 text-xs rounded-full whitespace-nowrap';
       applyTagColor(tagBadge, tag);
       tagBadge.textContent = tag;
-      tagsContainer.appendChild(tagBadge);
+      tagsWrap.appendChild(tagBadge);
+    });
+    tagsCell.appendChild(tagsWrap);
+    row.appendChild(tagsCell);
+
+    // 更新日
+    const dateCell = document.createElement('td');
+    dateCell.className = 'px-4 py-3 text-gray-600 whitespace-nowrap';
+    dateCell.textContent = formatDate(item.updatedAt || item.createdAt);
+    row.appendChild(dateCell);
+
+    row.addEventListener('click', () => viewKnowledgeDetail(item.id));
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') viewKnowledgeDetail(item.id);
     });
 
-    clone.querySelector('.knowledge-author-name').textContent = item.authorName;
-    clone.querySelector('.knowledge-date').textContent = formatDate(item.createdAt);
-    clone.querySelector('.knowledge-like-count').textContent = item.likeCount || 0;
-    clone.querySelector('.knowledge-comment-count').textContent = item.commentCount || 0;
-
-    const permLevel = getPermissionLevel(item);
-    const permBadge = clone.querySelector('.knowledge-permission-badge');
-    permBadge.textContent = PERMISSION_LABELS[permLevel];
-    if (permLevel === PERMISSION_LEVELS.READ) {
-      permBadge.className = 'knowledge-permission-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700';
-    } else if (permLevel === PERMISSION_LEVELS.READ_EDIT) {
-      permBadge.className = 'knowledge-permission-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700';
-    } else {
-      permBadge.className = 'knowledge-permission-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700';
-    }
-
-    card.addEventListener('click', () => viewKnowledgeDetail(item.id));
-
-    listEl.appendChild(clone);
+    tbody.appendChild(row);
   });
 
   updateFilters();
