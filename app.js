@@ -612,7 +612,7 @@ function printCurrentDoc() {
     <head>
       <meta charset="UTF-8">
       <title>${title}</title>
-      <style>body { font-family: sans-serif; padding: 20px; } table { border-collapse: collapse; width: 100%; margin: 10px 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f0f0f0; } pre { background-color: #f5f5f5; padding: 10px; overflow-x: auto; }</style>
+      <style>body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; padding: 20px; } table { border-collapse: collapse; width: 100%; margin: 10px 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f0f0f0; } pre { background-color: #f5f5f5; padding: 10px; overflow-x: auto; }</style>
     </head>
     <body><h1>${title}</h1>${content.innerHTML}</body>
     </html>
