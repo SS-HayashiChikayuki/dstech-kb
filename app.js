@@ -364,6 +364,7 @@ function setupEventListeners() {
   document.getElementById('detail-edit-btn').addEventListener('click', editKnowledge);
   document.getElementById('detail-delete-btn').addEventListener('click', deleteKnowledge);
   document.getElementById('detail-download-json-btn').addEventListener('click', downloadAsJson);
+  document.getElementById('bulk-export-json-btn').addEventListener('click', bulkExportAsJsonZip);
   document.getElementById('detail-download-csv-btn').addEventListener('click', downloadAsCsv);
   document.getElementById('submit-comment-btn').addEventListener('click', submitComment);
 
@@ -746,7 +747,8 @@ async function markAllNotificationsRead() {
   showToast('すべての通知を既読にしました', 'success');
 }
 
-function renderKnowledgeList() {
+// 現在の検索条件・フィルター・並び順を適用した記事一覧を返す（一覧表示と一括エクスポートで共用）
+function getFilteredKnowledgeItems() {
   const searchQuery = document.getElementById('search-input').value.toLowerCase();
   const categoryFilter = document.getElementById('filter-category').value;
   const authorFilter = document.getElementById('filter-author').value;
@@ -814,8 +816,20 @@ function renderKnowledgeList() {
     filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
   }
 
+  return filtered;
+}
+
+function renderKnowledgeList() {
+  const filtered = getFilteredKnowledgeItems();
+
   const listEl = document.getElementById('knowledge-list');
   const emptyState = document.getElementById('empty-state');
+
+  // 一括エクスポートバー（件数表示・ボタンの有効/無効）
+  const resultCountEl = document.getElementById('list-result-count');
+  if (resultCountEl) resultCountEl.textContent = `${filtered.length} 件`;
+  const bulkBtn = document.getElementById('bulk-export-json-btn');
+  if (bulkBtn) bulkBtn.disabled = filtered.length === 0;
 
   if (filtered.length === 0) {
     listEl.classList.add('hidden');
@@ -1539,19 +1553,157 @@ async function deleteKnowledge() {
   }
 }
 
-function downloadAsJson() {
-  const item = knowledgeItems.find(i => i.id === currentKnowledgeId);
-  if (!item) return;
-  
-  const textContent = item.content
-    .filter(c => c.type === 'text')
-    .map(c => c.value)
-    .join('\n');
-  
-  const exportData = {
+// ファイル名に使えない文字を置換
+function sanitizeFileName(name) {
+  return String(name).replace(/[\/\\:*?"<>|]/g, '_').trim() || 'file';
+}
+
+// 同じフォルダ内でファイル名が重複しないよう「名前 (2).png」形式にする
+function makeUniqueName(name, usedNames) {
+  if (!usedNames.has(name)) {
+    usedNames.add(name);
+    return name;
+  }
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let n = 2;
+  while (usedNames.has(`${base} (${n})${ext}`)) n++;
+  const unique = `${base} (${n})${ext}`;
+  usedNames.add(unique);
+  return unique;
+}
+
+// エクスポート用に本文を組み立てる。
+// 画像・添付ファイルは本文中の位置に [画像: ファイル名] / [添付ファイル: ファイル名] として埋め込む。
+// attachments には zip に同梱するためのデータ（フォルダ内パス・元データ）を返す
+function buildExportContent(item) {
+  const images = [];
+  const files = [];
+  const attachments = [];
+  const usedImageNames = new Set();
+  const usedFileNames = new Set();
+
+  const lines = (item.content || []).map(block => {
+    if (block.type === 'text') return block.value;
+    if (block.type === 'image') {
+      // 詳細画面のダウンロード名と同じ規則（名前が無ければ image_N.png）
+      const rawName = block.name || `image_${images.length + 1}.png`;
+      const name = makeUniqueName(sanitizeFileName(rawName), usedImageNames);
+      images.push(name);
+      attachments.push({ path: `images/${name}`, value: block.value });
+      return `[画像: ${name}]`;
+    }
+    if (block.type === 'file') {
+      const rawName = block.name || `file_${files.length + 1}`;
+      const name = makeUniqueName(sanitizeFileName(rawName), usedFileNames);
+      files.push(name);
+      attachments.push({ path: `files/${name}`, value: block.value });
+      return `[添付ファイル: ${name}]`;
+    }
+    return null;
+  }).filter(line => line != null);
+  return { text: lines.join('\n'), images, files, attachments };
+}
+
+// data URL / URL から Blob を取得する
+async function attachmentToBlob(value) {
+  if (!value) throw new Error('empty attachment');
+  if (value.startsWith('data:')) {
+    const commaIdx = value.indexOf(',');
+    const meta = value.substring(5, commaIdx);
+    const data = value.substring(commaIdx + 1);
+    const mimeType = meta.split(';')[0] || 'application/octet-stream';
+    if (meta.includes(';base64')) {
+      const binary = atob(data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mimeType });
+    }
+    return new Blob([decodeURIComponent(data)], { type: mimeType });
+  }
+  const res = await fetch(value);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.blob();
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// エクスポート本体。添付が無ければ単体ファイル、あれば画像・添付ファイルを含む zip でダウンロード
+async function downloadExport(item, mainBlob, mainExt, exported, label) {
+  const baseName = sanitizeFileName(item.title);
+
+  if (exported.attachments.length === 0) {
+    triggerDownload(mainBlob, `${baseName}.${mainExt}`);
+    showToast(`${label}ファイルをダウンロードしました`, 'success');
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    // ライブラリが読み込めない場合は従来どおり単体ファイルのみ
+    triggerDownload(mainBlob, `${baseName}.${mainExt}`);
+    showToast('ZIPライブラリを読み込めなかったため、添付ファイルを除いてダウンロードしました', 'error');
+    return;
+  }
+
+  showToast('ZIPファイルを作成しています...', 'info');
+  const zip = new JSZip();
+  zip.file(`${baseName}.${mainExt}`, mainBlob);
+
+  // 記事一覧の一括出力と同じく、添付は <記事id>/images, <記事id>/files に保存
+  const folder = getAttachmentFolder(item);
+  const failed = [];
+  for (const att of exported.attachments) {
+    const path = `${folder}/${att.path}`;
+    try {
+      zip.file(path, await attachmentToBlob(att.value));
+    } catch (e) {
+      console.error('Failed to add attachment to zip:', path, e);
+      failed.push(path);
+    }
+  }
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  triggerDownload(zipBlob, `${baseName}.zip`);
+
+  if (failed.length > 0) {
+    showToast(`ZIPをダウンロードしました（取得できなかったファイル: ${failed.join(', ')}）`, 'error');
+  } else {
+    showToast(`${label}と添付ファイルをZIPでダウンロードしました`, 'success');
+  }
+}
+
+// 添付ファイルを格納するフォルダ名（記事id）
+function getAttachmentFolder(item) {
+  return sanitizeFileName(String(item.id));
+}
+
+// JSON エクスポート用の記事データ（単体・一括で共通）
+function buildExportRecord(item, exported) {
+  const record = buildExportRecordBase(item, exported);
+  if (exported.attachments.length > 0) {
+    record.attachmentFolder = `${getAttachmentFolder(item)}/`;
+  }
+  return record;
+}
+
+function buildExportRecordBase(item, exported) {
+  return {
+    id: item.id,
     title: item.title,
     category: item.category,
-    content: textContent,
+    content: exported.text,
+    images: exported.images,
+    files: exported.files,
     tags: item.tags || [],
     customAttributes: item.customAttributes || [],
     authorName: item.authorName,
@@ -1561,34 +1713,100 @@ function downloadAsJson() {
     commentCount: item.commentCount || 0,
     viewCount: item.viewCount || 0
   };
-  
-  const jsonStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  
-  const sanitizedTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
-  const filename = `${sanitizedTitle}.json`;
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  showToast('JSONファイルをダウンロードしました', 'success');
 }
 
-function downloadAsCsv() {
+// 検索結果の記事を一括で JSON + 添付ファイル（記事idごとのフォルダ）として ZIP 出力
+//   knowledge_export_YYYYMMDD_HHMMSS.zip
+//   ├── knowledge.json            ← 記事データの配列（各記事に id 付き）
+//   ├── <記事id>/images/...       ← 画像
+//   └── <記事id>/files/...        ← 添付ファイル
+async function bulkExportAsJsonZip() {
+  const items = getFilteredKnowledgeItems();
+  if (items.length === 0) {
+    showToast('ダウンロードする記事がありません', 'error');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    showToast('ZIPライブラリを読み込めなかったため、ダウンロードできません', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('bulk-export-json-btn');
+  if (btn) btn.disabled = true;
+  showToast(`${items.length} 件の記事をZIPにまとめています...`, 'info');
+
+  try {
+    const zip = new JSZip();
+    const records = [];
+    const failed = [];
+
+    for (const item of items) {
+      const exported = buildExportContent(item);
+      const record = buildExportRecord(item, exported);
+      const folder = getAttachmentFolder(item);
+      records.push(record);
+
+      for (const att of exported.attachments) {
+        const path = `${folder}/${att.path}`;
+        try {
+          zip.file(path, await attachmentToBlob(att.value));
+        } catch (e) {
+          console.error('Failed to add attachment to zip:', path, e);
+          failed.push(path);
+        }
+      }
+    }
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      count: records.length,
+      items: records
+    };
+    zip.file('knowledge.json', JSON.stringify(exportData, null, 2));
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    triggerDownload(zipBlob, `knowledge_export_${stamp}.zip`);
+
+    if (failed.length > 0) {
+      showToast(`ZIPをダウンロードしました（取得できなかったファイル: ${failed.join(', ')}）`, 'error');
+    } else {
+      showToast(`${records.length} 件の記事をZIPでダウンロードしました`, 'success');
+    }
+  } catch (error) {
+    console.error('Failed to bulk export:', error);
+    showToast('一括エクスポートに失敗しました', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function downloadAsJson() {
+  const item = knowledgeItems.find(i => i.id === currentKnowledgeId);
+  if (!item) return;
+
+  const exported = buildExportContent(item);
+  const exportData = buildExportRecord(item, exported);
+
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+
+  try {
+    await downloadExport(item, blob, 'json', exported, 'JSON');
+  } catch (error) {
+    console.error('Failed to export JSON:', error);
+    showToast('エクスポートに失敗しました', 'error');
+  }
+}
+
+async function downloadAsCsv() {
   const item = knowledgeItems.find(i => i.id === currentKnowledgeId);
   if (!item) return;
   
-  const textContent = item.content
-    .filter(c => c.type === 'text')
-    .map(c => c.value)
-    .join('\n');
-  
+  const exported = buildExportContent(item);
+
   const escapeCSV = (value) => {
     if (value == null) return '';
     const str = String(value);
@@ -1600,6 +1818,7 @@ function downloadAsCsv() {
   
   const rows = [
     ['項目', '値'],
+    ['id', escapeCSV(item.id)],
     ['タイトル', escapeCSV(item.title)],
     ['カテゴリ', escapeCSV(item.category)],
     ['タグ', escapeCSV((item.tags || []).join(', '))],
@@ -1617,27 +1836,29 @@ function downloadAsCsv() {
     });
   }
   
-  rows.push(['内容', escapeCSV(textContent)]);
+  rows.push(['内容', escapeCSV(exported.text)]);
+  if (exported.images.length > 0) {
+    rows.push(['画像', escapeCSV(exported.images.join(', '))]);
+  }
+  if (exported.files.length > 0) {
+    rows.push(['添付ファイル', escapeCSV(exported.files.join(', '))]);
+  }
+  if (exported.attachments.length > 0) {
+    rows.push(['添付フォルダ', escapeCSV(`${getAttachmentFolder(item)}/`)]);
+  }
   
   const csvContent = rows.map(row => row.join(',')).join('\n');
   const bom = '\uFEFF';
   const csvWithBom = bom + csvContent;
   
   const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  
-  const sanitizedTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
-  const filename = `${sanitizedTitle}.csv`;
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  showToast('CSVファイルをダウンロードしました', 'success');
+
+  try {
+    await downloadExport(item, blob, 'csv', exported, 'CSV');
+  } catch (error) {
+    console.error('Failed to export CSV:', error);
+    showToast('エクスポートに失敗しました', 'error');
+  }
 }
 
 function clearForm() {

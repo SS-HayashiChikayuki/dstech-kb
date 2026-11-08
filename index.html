@@ -2,11 +2,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="社内の知見を共有・蓄積するための統合ナレッジ管理プラットフォーム">
-  <title>ナレッジ管理システム</title>
+  <title>総研テックKB</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="app.js" defer=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/ryuu.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style type="text/tailwindcss">
     @theme {
       --color-base-bg: #F5F0E8;
@@ -366,6 +367,15 @@
 
           </div>
           </div>
+        </div>
+
+        <!-- List toolbar: result count + bulk export -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm text-gray-600">検索結果: <span id="list-result-count" class="font-semibold text-gray-900">0 件</span></span>
+          <button type="button" id="bulk-export-json-btn" class="inline-flex items-center gap-1 px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="検索結果の記事をJSON(ZIP)で一括ダウンロード">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            検索結果をJSONで一括ダウンロード（ZIP）
+          </button>
         </div>
 
         <!-- Knowledge List (Table) -->
