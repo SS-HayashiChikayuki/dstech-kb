@@ -1,0 +1,1530 @@
+<html lang="ja"><!-- ナレッジ管理システム v1.0 --><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="社内の知見を共有・蓄積するための統合ナレッジ管理プラットフォーム">
+  <title>ナレッジ管理システム</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="app.js" defer=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/ryuu.js"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-base-bg: #F5F7FA;
+      --color-card-bg: #E8EBF0;
+      --color-text-primary: #1F2937;
+      --color-accent-blue: #3B82F6;
+      --color-accent-green: #10B981;
+      
+      --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--color-base-bg);
+      color: var(--color-text-primary);
+    }
+    
+    .content-editor {
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .content-editor:focus {
+      outline: 2px solid var(--color-accent-blue);
+      outline-offset: 2px;
+    }
+    
+    .tag-badge {
+      transition: all 0.2s ease;
+    }
+    
+    .tag-badge:hover {
+      transform: scale(1.05);
+    }
+    
+    .knowledge-card {
+      transition: all 0.3s ease;
+    }
+    
+    .knowledge-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .drop-zone-active {
+      border-color: var(--color-accent-blue);
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+    
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .toast {
+      animation: slideInRight 0.3s ease-out;
+    }
+    
+    .notification-panel {
+      animation: slideInRight 0.3s ease-out;
+    }
+    
+    .autocomplete-dropdown {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">ナレッジ管理システム</h1>
+          <p class="mt-1 text-sm text-gray-600">社内のナレッジを一元管理・共有</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <button id="api-debug-btn" class="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition focus:ring-2 focus:ring-blue-500" aria-label="APIデバッグ">
+            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+            </svg>
+            APIデバッグ
+          </button>
+
+          <!-- Notification Bell -->
+          <button id="notification-bell" class="relative p-2 text-gray-600 hover:text-gray-900 transition focus:ring-2 focus:ring-blue-500 rounded-lg" aria-label="通知">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">0</span>
+          </button>
+
+          <!-- Current User Avatar -->
+          <div id="current-user-info" class="flex items-center gap-2">
+            <div id="current-user-avatar" class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
+              山
+            </div>
+            <span id="current-user-name" class="text-sm font-medium text-gray-900 hidden sm:inline">読み込み中...</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Navigation Tabs -->
+      <nav class="mt-6">
+        <div class="flex justify-between items-center gap-4">
+          <div class="flex gap-2">
+          <button id="btn-nav-list" class="px-6 py-3 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500" aria-label="記事一覧">
+            記事一覧
+          </button>
+          <button id="btn-nav-ranking" class="px-6 py-3 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500" aria-label="ランキング">
+            ランキング
+          </button>
+          <button id="btn-nav-new" class="px-6 py-3 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600 transition focus:ring-2 focus:ring-green-500" aria-label="新規投稿">
+            新規投稿
+          </button>
+          <button id="btn-nav-docs" class="px-6 py-3 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500" aria-label="ドキュメント">
+            ドキュメント
+          </button>
+          </div>
+          <button id="api-debug-btn-nav" class="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition focus:ring-2 focus:ring-blue-500" aria-label="APIデバッグ">
+            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+            </svg>
+            APIデバッグ
+          </button>
+        </div>
+      </nav>
+    </header>
+      
+      <!-- Notification Panel -->
+      <div id="notification-panel" class="hidden fixed right-4 top-20 w-96 max-h-[80vh] bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="font-semibold text-gray-900">通知</h3>
+          <div class="flex gap-2">
+            <button id="mark-all-read" class="text-xs text-blue-500 hover:text-blue-600 transition">すべて既読</button>
+            <button id="close-notification-panel" class="text-gray-400 hover:text-gray-600 transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="notification-list" class="overflow-y-auto max-h-[calc(80vh-60px)]">
+          <!-- Notifications will be inserted here -->
+        </div>
+      </div>
+      
+      <!-- API Debug Modal -->
+      <div id="api-debug-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900">Domo API デバッグパネル</h3>
+            <button id="close-api-debug-modal" class="text-gray-400 hover:text-gray-600 transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="p-6 overflow-y-auto flex-1">
+            <!-- Current User Info -->
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 class="text-sm font-semibold text-blue-900 mb-3">現在の currentUser オブジェクト</h4>
+              <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt class="text-blue-700 font-medium">ID:</dt>
+                  <dd id="debug-current-user-id" class="text-blue-900 font-mono text-xs mt-1">-</dd>
+                </div>
+                <div>
+                  <dt class="text-blue-700 font-medium">名前:</dt>
+                  <dd id="debug-current-user-name" class="text-blue-900 mt-1">-</dd>
+                </div>
+                <div class="col-span-2">
+                  <dt class="text-blue-700 font-medium">メールアドレス:</dt>
+                  <dd id="debug-current-user-email" class="text-blue-900 font-mono text-xs mt-1">-</dd>
+                </div>
+              </dl>
+            </div>
+            
+            <!-- API Test Buttons -->
+            <div class="mb-4 space-y-2">
+              <button id="test-api-users-limit1-btn" class="w-full px-4 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                /domo/users/v1?limit=1 を実行
+              </button>
+              
+              <button id="test-domo-env-btn" class="w-full px-4 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                domo.env を確認
+              </button>
+              
+              <button id="test-api-users-limit500-btn" class="w-full px-4 py-3 bg-purple-500 text-white font-medium rounded-lg hover:bg-purple-600 transition focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                /domo/users/v1?limit=500 を実行
+              </button>
+            </div>
+            
+            <!-- API Response Display -->
+            <div>
+              <label for="api-response-textarea" class="block text-sm font-medium text-gray-700 mb-2">APIレスポンス:</label>
+              <textarea id="api-response-textarea" rows="20" readonly="" placeholder="上記のいずれかのボタンをクリックするとレスポンスがここに表示されます..." class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    <!-- Main Content -->
+    <main>
+      <!-- Page 1: Article List Page -->
+      <section id="page-list" class="page-section">
+        <!-- Search and Filters -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div class="space-y-4">
+            <!-- Search Bar -->
+            <div class="relative">
+              <label for="search-input" class="sr-only">全文検索</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                  <input type="search" id="search-input" placeholder="タイトル・内容・タグ・カスタム属性で検索..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" aria-label="ナレッジを検索">
+            </div>
+
+            <!-- Filters -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label for="filter-category" class="sr-only">カテゴリでフィルター</label>
+                <select id="filter-category" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="カテゴリでフィルター">
+                  <option value="">すべてのカテゴリ</option>
+                </select>
+              </div>
+              <div>
+                <label for="filter-tags" class="sr-only">タグでフィルター</label>
+                <select id="filter-tags" multiple="" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="タグでフィルター">
+                  <option value="">すべてのタグ</option>
+                </select>
+              </div>
+              <div>
+                <label for="filter-author" class="sr-only">作成者でフィルター</label>
+                <select id="filter-author" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="作成者でフィルター">
+                  <option value="">すべての作成者</option>
+                </select>
+              </div>
+              <div>
+                <label for="sort-select" class="sr-only">並べ替え</label>
+                <select id="sort-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="並べ替え">
+                  <option value="newest">作成日時: 新しい順</option>
+                  <option value="oldest">作成日時: 古い順</option>
+                  <option value="likes">いいね数順</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Custom Attribute Filters -->
+            <div class="mt-3">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-sm font-medium text-gray-700">カスタム属性で絞り込み</span>
+                <button type="button" id="add-attr-filter-btn" class="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500" aria-label="条件を追加">
+                  + 条件を追加
+                </button>
+                <button type="button" id="clear-attr-filters-btn" class="hidden px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500" aria-label="すべてクリア">
+                  クリア
+                </button>
+              </div>
+              <!-- Active filters badges -->
+              <div id="attr-filter-list" class="flex flex-wrap gap-2 min-h-[24px]">
+                <!-- Filter badges will be inserted here dynamically -->
+              </div>
+              <!-- Filter input form (initially hidden) -->
+              <div id="attr-filter-form" class="hidden mt-2 flex gap-2 items-center flex-wrap">
+                <select id="attr-filter-key-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" aria-label="カスタム属性のキーを選択">
+                  <option value=""></option>
+                </select>
+                <input type="text" id="attr-filter-value-input" placeholder="値を入力（空白=キーのみ）" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition w-48" aria-label="カスタム属性の値を入力">
+                <button type="button" id="attr-filter-add-confirm-btn" class="px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500">
+                  追加
+                </button>
+                <button type="button" id="attr-filter-cancel-btn" class="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500">
+                  キャンセル
+                </button>
+              </div>
+            </div>
+
+          </div>
+          </div>
+        </div>
+
+        <!-- Knowledge Cards List -->
+        <div id="knowledge-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
+          <!-- Knowledge cards will be dynamically inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="bg-white rounded-lg shadow-sm p-12 text-center hidden">
+          <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">ナレッジがありません</h3>
+          <p class="text-sm text-gray-500">新しいナレッジを投稿してください</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="bg-white rounded-lg shadow-sm p-12 text-center hidden">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-500" role="status" aria-label="読み込み中">
+            <span class="sr-only">読み込み中...</span>
+          </div>
+          <p class="mt-4 text-sm text-gray-500">データを読み込んでいます...</p>
+        </div>
+      </section>
+
+      <!-- Page 2: Article Detail Page -->
+      <section id="page-detail" class="page-section" style="display:none;">
+        <div class="max-w-4xl mx-auto">
+          <button id="back-to-list" class="mb-4 text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-1 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            戻る
+          </button>
+          
+          <article class="bg-white rounded-lg shadow-sm p-8">
+            <div class="mb-6">
+              <h1 id="detail-title" class="text-3xl font-bold text-gray-900 mb-4">タイトル</h1>
+              <div class="flex flex-wrap gap-2 mb-4">
+                <span id="detail-category" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">カテゴリ</span>
+                <div id="detail-tags" class="flex flex-wrap gap-2">
+                  <!-- Tags will be inserted here -->
+                </div>
+              </div>
+              <div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                <div class="flex items-center gap-2">
+                  <img id="detail-author-avatar" src="" alt="作成者アバター" class="w-8 h-8 rounded-full border-2 border-gray-300 hidden">
+                  <span id="detail-author-name">作成者</span>
+                </div>
+                <span id="detail-created-at">2024-01-01</span>
+                <span id="detail-updated-at" class="hidden">更新: 2024-01-01</span>
+              </div>
+            </div>
+            
+            <div id="detail-custom-attrs" class="mb-6 hidden">
+              <h3 class="text-sm font-semibold text-gray-700 mb-2">カスタム属性</h3>
+              <dl class="grid grid-cols-2 gap-2 text-sm">
+                <!-- Custom attributes will be inserted here -->
+              </dl>
+            </div>
+            
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">詳細</h3>
+            
+            <div id="detail-content" class="prose prose-sm max-w-none mb-6">
+              <!-- Full content will be inserted here -->
+            </div>
+            
+            <div id="detail-files" class="mb-6 hidden">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">添付ファイル・画像</h3>
+              <div class="space-y-2">
+                <!-- File and image download links will be inserted here -->
+              </div>
+            </div>
+            
+            <div id="detail-images" class="mb-6 hidden">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">添付画像</h3>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <!-- Images will be inserted here -->
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-4 pt-4 border-t border-gray-200 mb-6">
+              <button id="detail-like-btn" class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition focus:ring-2 focus:ring-blue-500">
+                <svg class="w-5 h-5 like-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+                <span id="detail-like-count">0</span>
+              </button>
+              <span class="flex items-center gap-2 text-sm text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <span id="detail-comment-count">0</span>
+              </span>
+              <div class="ml-auto flex gap-2">
+                <button id="detail-download-json-btn" class="px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition focus:ring-2 focus:ring-indigo-500">
+                  JSON
+                </button>
+                <button id="detail-download-csv-btn" class="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition focus:ring-2 focus:ring-teal-500">
+                  CSV
+                </button>
+                <button id="detail-history-btn" class="px-4 py-2 bg-gray-500 text-white text-sm font-medium rounded-lg hover:bg-gray-600 transition focus:ring-2 focus:ring-gray-500">
+                  履歴
+                </button>
+                <button id="detail-edit-btn" class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled="">
+                  編集
+                </button>
+                <button id="detail-delete-btn" class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled="">
+                  削除
+                </button>
+              </div>
+            </div>
+            
+            <!-- Comments Section -->
+            <div class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">コメント</h3>
+              
+              <!-- Comment Form -->
+              <div class="mb-6">
+                <textarea id="comment-input" rows="3" placeholder="コメントを入力..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"></textarea>
+                <button id="submit-comment-btn" class="mt-2 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500">
+                  投稿
+                </button>
+              </div>
+              
+              <!-- Comments List -->
+              <div id="comments-list" class="space-y-4">
+                <!-- Comments will be inserted here -->
+              </div>
+              
+              <div id="comments-empty" class="text-center py-8 text-sm text-gray-500 hidden">
+                コメントはまだありません
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Page 3: New Post / Edit Form Page -->
+      <section id="page-form" class="page-section" style="display:none;">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6">
+        <h2 id="form-heading" class="text-xl font-semibold mb-6 text-gray-900">新規ナレッジ登録</h2>
+        
+        <form id="knowledge-form" class="space-y-6">
+          <!-- Title -->
+          <div>
+            <label for="title-input" class="block text-sm font-medium text-gray-700 mb-2">
+              タイトル <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="title-input" name="title" required="" placeholder="例: 新規プロジェクトのセットアップ手順" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" aria-required="true">
+          </div>
+
+          <!-- Category -->
+          <div>
+            <label for="category-select" class="block text-sm font-medium text-gray-700 mb-2">
+              カテゴリ <span class="text-red-500">*</span>
+            </label>
+            <div>
+              <div class="flex gap-2">
+              <select id="category-select" name="category" required="" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" aria-required="true">
+                <option value="">カテゴリを選択</option>
+              </select>
+              <button type="button" id="add-category-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="カテゴリを追加">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+              </button>
+            </div>
+              <div id="new-category-input" class="mt-2 hidden">
+                <input type="text" id="new-category-value" placeholder="新しいカテゴリ名を入力" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Editor -->
+          <div>
+            <label for="content-editor" class="block text-sm font-medium text-gray-700 mb-2">
+              内容 <span class="text-red-500">*</span>
+            </label>
+            <div id="content-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-label="ナレッジの内容を入力してください。ファイルは Ctrl+V でペーストできます。" class="content-editor w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white focus:border-blue-500 transition" data-placeholder="ナレッジの内容を入力してください。ファイルは Ctrl+V でペーストできます。"></div>
+            <p class="mt-2 text-xs text-gray-500">
+              ファイル: Ctrl+V でクリップボードからペースト、またはドラッグ&amp;ドロップ
+            </p>
+          </div>
+
+          <!-- File Upload Zone -->
+          <div id="image-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center transition hover:border-gray-400" role="button" tabindex="0" aria-label="ファイルをドラッグ&amp;ドロップ、またはクリックして選択">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <p class="mt-2 text-sm text-gray-600">ファイルをドラッグ&amp;ドロップ</p>
+            <p class="mt-1 text-xs text-gray-500">または</p>
+            <button type="button" id="select-image-btn" class="mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              ファイルを選択
+            </button>
+            <input type="file" id="image-file-input" accept="*/*" multiple="" class="hidden" aria-label="ファイルを選択">
+          </div>
+
+          <!-- Tags -->
+          <div>
+            <label for="tags-input" class="block text-sm font-medium text-gray-700 mb-2">
+              タグ
+            </label>
+            <div id="tags-container" class="flex flex-wrap gap-2 mb-2 min-h-[32px] p-2 border border-gray-300 rounded-lg bg-gray-50">
+              <!-- Tags will be added here dynamically -->
+            </div>
+            <div class="relative">
+              <input type="text" id="tags-input" autocomplete="off" placeholder="タグを入力して Enter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" aria-label="タグを入力">
+              <div id="tags-autocomplete" class="hidden absolute top-full left-0 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto autocomplete-dropdown">
+                <!-- Autocomplete suggestions will be inserted here -->
+              </div>
+            </div>
+            <div class="mt-2">
+              <button type="button" id="add-tag-btn" class="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="タグを追加">
+                追加
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Attributes -->
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label class="block text-sm font-medium text-gray-700">
+                カスタム属性
+              </label>
+              <button type="button" id="add-attribute-btn" class="text-sm text-blue-500 hover:text-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1" aria-label="属性を追加">
+                + 属性を追加
+              </button>
+            </div>
+            <div id="attributes-container" class="space-y-2">
+              <!-- Custom attributes will be added here dynamically -->
+            </div>
+            <div id="new-attribute-form" class="hidden mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div class="grid grid-cols-2 gap-2 relative">
+                <div class="relative">
+                <input type="text" id="new-attribute-key" autocomplete="off" placeholder="キー" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="属性のキー">
+                  <div id="attr-key-autocomplete" class="hidden absolute top-full left-0 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto autocomplete-dropdown">
+                    <!-- Autocomplete suggestions will be inserted here -->
+                  </div>
+                </div>
+                <input type="text" id="new-attribute-value" placeholder="値" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" aria-label="属性の値">
+              </div>
+              <div class="flex gap-2 mt-2">
+                <button type="button" id="save-attribute-btn" class="flex-1 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                  保存
+                </button>
+                <button type="button" id="cancel-attribute-btn" class="flex-1 px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Author -->
+          <div>
+            <label for="author-input" class="block text-sm font-medium text-gray-700 mb-2">
+              作成者
+            </label>
+            <input type="text" id="author-input" name="author" readonly="" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed" aria-readonly="true">
+          </div>
+
+          <!-- Created At (Read-only) -->
+          <div>
+            <label for="created-at-input" class="block text-sm font-medium text-gray-700 mb-2">
+              作成日時
+            </label>
+            <input type="text" id="created-at-input" name="createdAt" readonly="" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed" aria-readonly="true">
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3 pt-4">
+            <button type="button" id="submit-btn" class="flex-1 px-6 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="ナレッジを登録">
+              投稿する
+            </button>
+            <button type="button" id="save-draft-btn" class="px-6 py-3 bg-gray-400 text-white font-medium rounded-lg hover:bg-gray-500 transition focus:ring-2 focus:ring-gray-500 focus:ring-offset-2" aria-label="下書き保存">
+              下書き保存
+            </button>
+            <button type="button" id="cancel-btn" class="px-6 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500 focus:ring-offset-2" aria-label="キャンセル">
+              キャンセル
+            </button>
+          </div>
+        </form>
+        </div>
+
+        <!-- Permissions Section -->
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6 mt-6">
+          <div class="border-t border-gray-200 pt-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-base font-semibold text-gray-900">アクセス権限設定</h3>
+              <button type="button" id="add-permission-btn" class="px-3 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                + 権限を追加
+              </button>
+            </div>
+            
+            <!-- Permissions Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm border border-gray-200 rounded-lg">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 border-b border-gray-200">対象</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 border-b border-gray-200">権限レベル</th>
+                    <th class="px-4 py-3 text-center font-medium text-gray-700 border-b border-gray-200 w-20">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="permissions-table-body" class="divide-y divide-gray-200">
+                  <!-- Permission entries will be dynamically inserted here -->
+                  <tr class="permission-entry bg-white">
+                    <td class="px-4 py-3 text-gray-900">全員</td>
+                    <td class="px-4 py-3 text-gray-700">読取＋編集</td>
+                    <td class="px-4 py-3 text-center text-gray-400 text-xs">デフォルト</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">
+              ※ 作成者は常に「読取＋編集＋削除」権限を持ちます(変更不可)
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Permission Entry Modal (Outside form) -->
+      <div id="permission-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">権限を追加</h3>
+          
+          <div class="space-y-4 mb-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">対象の種類</label>
+              <select id="permission-target-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                <option value="everyone">全員</option>
+                <option value="user">DOMOユーザー</option>
+                <option value="group">DOMOグループ</option>
+              </select>
+            </div>
+            
+            <div id="permission-target-selector" class="hidden">
+              <label class="block text-sm font-medium text-gray-700 mb-2">対象を選択</label>
+              <select id="permission-target-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                <option value="">選択してください</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">権限レベル</label>
+              <select id="permission-level-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                <option value="read">読取のみ</option>
+                <option value="read_edit" selected="">読取＋編集</option>
+                <option value="read_edit_delete">読取＋編集＋削除</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <button id="permission-modal-confirm" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              確定
+            </button>
+            <button id="permission-modal-cancel" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Modal -->
+      <div id="history-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900">更新履歴</h3>
+            <button id="close-history-modal" class="text-gray-400 hover:text-gray-600 transition" aria-label="閉じる">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="history-list" class="overflow-y-auto flex-1 p-6">
+            <!-- History items will be inserted here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- History Diff Modal -->
+      <div id="history-diff-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 id="history-diff-title" class="text-lg font-semibold text-gray-900">変更内容の比較</h3>
+            <button id="close-history-diff-modal" class="text-gray-400 hover:text-gray-600 transition" aria-label="閉じる">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="history-diff-content" class="overflow-y-auto flex-1 p-6">
+            <!-- Diff content will be inserted here -->
+          </div>
+          <div class="p-4 border-t border-gray-200">
+            <button id="back-to-history-list" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm focus:ring-2 focus:ring-gray-500" aria-label="履歴一覧に戻る">
+              <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+              履歴一覧に戻る
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 4: Ranking Page -->
+      <section id="page-ranking" class="page-section" style="display:none;">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">ランキング</h2>
+          
+          <!-- Tabs -->
+          <div class="flex gap-2 mb-6 border-b border-gray-200">
+            <button id="ranking-tab-weekly" class="ranking-tab active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition">
+              週間ランキング
+            </button>
+            <button id="ranking-tab-monthly" class="ranking-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition">
+              月間ランキング
+            </button>
+          </div>
+          
+          <!-- Ranking Score Description -->
+          <p id="ranking-score-description" class="text-xs text-gray-500 mb-4">
+            いいね数(×3)・コメント数(×2)・閲覧数(×1) の合計スコアで順位を決定
+          </p>
+          
+          <!-- Ranking List -->
+          <div id="ranking-list" class="space-y-4">
+            <!-- Ranking items will be inserted here -->
+          </div>
+          
+          <!-- Empty State -->
+          <div id="ranking-empty" class="text-center py-12 hidden">
+            <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">ランキングデータがありません</h3>
+            <p class="text-sm text-gray-500">まだいいねがありません</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Page 5: Documentation Page -->
+      <section id="page-docs" class="page-section" style="display:none;">
+        <div class="bg-white rounded-lg shadow-sm">
+          <!-- Tabs -->
+          <div class="border-b border-gray-200">
+            <nav class="flex gap-2 px-6 pt-6">
+              <button id="doc-tab-spec" class="doc-tab active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition">
+                仕様書
+              </button>
+              <button id="doc-tab-test" class="doc-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition">
+                テスト仕様書
+              </button>
+              <button id="doc-tab-manual" class="doc-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition">
+                利用手順書
+              </button>
+            </nav>
+          </div>
+
+          <!-- Document Content -->
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h2 id="doc-title" class="text-2xl font-bold text-gray-900">アプリケーション仕様書</h2>
+              <button id="doc-print-btn" class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500" aria-label="印刷">
+                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                印刷
+              </button>
+            </div>
+
+            <!-- Specification Document -->
+            <div id="doc-content-spec" class="doc-content">
+              <div class="prose max-w-none">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">目次</h3>
+                <ul class="list-disc list-inside mb-6 text-sm text-blue-600">
+                  <li><a href="#spec-overview" class="hover:underline">アプリ概要</a></li>
+                  <li><a href="#spec-datastore" class="hover:underline">データストア</a></li>
+                  <li><a href="#spec-structure" class="hover:underline">データ構造</a></li>
+                  <li><a href="#spec-pages" class="hover:underline">ページ構成</a></li>
+                  <li><a href="#spec-features" class="hover:underline">機能一覧</a></li>
+                </ul>
+
+                <h3 id="spec-overview" class="text-xl font-semibold text-gray-900 mb-3 mt-8">アプリ概要</h3>
+                <table class="w-full text-sm border border-gray-200 mb-6">
+                  <tbody>
+                    <tr class="border-b border-gray-200">
+                      <td class="px-4 py-3 bg-gray-50 font-medium w-1/4">アプリ名</td>
+                      <td class="px-4 py-3">ナレッジ管理システム</td>
+                    </tr>
+                    <tr class="border-b border-gray-200">
+                      <td class="px-4 py-3 bg-gray-50 font-medium">種別</td>
+                      <td class="px-4 py-3">SPA (Single Page Application)</td>
+                    </tr>
+                    <tr class="border-b border-gray-200">
+                      <td class="px-4 py-3 bg-gray-50 font-medium">技術スタック</td>
+                      <td class="px-4 py-3">HTML / Vanilla JavaScript / Tailwind CSS (CDN) / Domo AppDB (NoSQL)</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3 bg-gray-50 font-medium">目的</td>
+                      <td class="px-4 py-3">社内のナレッジを一元管理・共有するプラットフォーム</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h3 id="spec-datastore" class="text-xl font-semibold text-gray-900 mb-3 mt-8">データストア (Domo AppDB Collections)</h3>
+                <table class="w-full text-sm border border-gray-200 mb-6">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">コレクション名</th>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">用途</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr><td class="px-4 py-3 font-mono text-xs">knowledgeItems</td><td class="px-4 py-3">ナレッジ記事本体</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">comments</td><td class="px-4 py-3">コメント</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">notifications</td><td class="px-4 py-3">通知</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">knowledgeHistory</td><td class="px-4 py-3">更新履歴スナップショット</td></tr>
+                  </tbody>
+                </table>
+
+                <h3 id="spec-structure" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ナレッジ記事データ構造</h3>
+                <pre class="bg-gray-50 p-4 rounded-lg text-xs overflow-x-auto mb-6"><code>{
+  id: string (AppDB自動採番),
+  title: string,
+  category: string,
+  content: Array&lt;{type: 'text'|'image'|'file', value: string, name?: string, mimeType?: string}&gt;,
+  tags: string[],
+  customAttributes: Array&lt;{key: string, value: string}&gt;,
+  authorId: string,
+  authorName: string,
+  status: 'published' | 'draft',
+  createdAt: ISO8601,
+  updatedAt: ISO8601,
+  likeCount: number,
+  likedBy: string[],
+  commentCount: number,
+  viewCount: number,
+  permissions: Array&lt;{
+    targetType: 'everyone'|'user'|'group',
+    targetId: string|null,
+    targetName: string,
+    level: 'read'|'read_edit'|'read_edit_delete'
+  }&gt;
+}</code></pre>
+
+                <h3 id="spec-pages" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ページ構成</h3>
+                <table class="w-full text-sm border border-gray-200 mb-6">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">ページID</th>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">説明</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr><td class="px-4 py-3 font-mono text-xs">page-list</td><td class="px-4 py-3">記事一覧ページ（デフォルト）</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">page-detail</td><td class="px-4 py-3">記事詳細ページ</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">page-form</td><td class="px-4 py-3">新規投稿・編集フォームページ</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">page-ranking</td><td class="px-4 py-3">ランキングページ</td></tr>
+                    <tr><td class="px-4 py-3 font-mono text-xs">page-docs</td><td class="px-4 py-3">ドキュメントページ</td></tr>
+                  </tbody>
+                </table>
+
+                <h3 id="spec-features" class="text-xl font-semibold text-gray-900 mb-3 mt-8">機能一覧</h3>
+                
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">1. 記事一覧 (page-list)</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>公開済み記事をカード形式で表示</li>
+                  <li>全文検索（タイトル・本文・タグ・カスタム属性）</li>
+                  <li>カテゴリフィルター</li>
+                  <li>タグフィルター（複数選択）</li>
+                  <li>作成者フィルター</li>
+                  <li>並べ替え（新しい順・古い順・いいね数順）</li>
+                  <li>カスタム属性フィルター（キー・値で絞り込み、バッジ表示）</li>
+                  <li>記事カードにサムネイル画像・タグ・いいね数・コメント数・権限バッジ表示</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">2. 記事詳細 (page-detail)</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>タイトル・カテゴリ・タグ・作成者・作成日時・更新日時表示</li>
+                  <li>カスタム属性表示</li>
+                  <li>コンテンツ表示（テキスト・画像・ファイル混在）</li>
+                  <li>画像: インライン表示 + ファイル名付きダウンロードリンク</li>
+                  <li>ファイル: ファイル名 + ダウンロードボタン</li>
+                  <li>添付画像一覧セクション（サムネイルグリッド、ホバーでDLボタン表示）</li>
+                  <li>いいねボタン（トグル、通知送信）</li>
+                  <li>コメント投稿・表示・削除</li>
+                  <li>編集ボタン（権限チェック: read_edit以上）</li>
+                  <li>削除ボタン（権限チェック: read_edit_delete のみ）</li>
+                  <li>履歴ボタン（更新履歴がある場合のみ有効）</li>
+                  <li>閲覧数カウントアップ</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">3. 新規投稿・編集フォーム (page-form)</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>タイトル入力</li>
+                  <li>カテゴリ選択（既存から選択 or 新規入力）</li>
+                  <li>コンテンツエディタ（contenteditable）</li>
+                  <li>画像・ファイル添付（ペースト・ドラッグ&amp;ドロップ・選択）</li>
+                  <li>スクリーンショット貼り付け時: ユニーク名自動生成</li>
+                  <li>タグ入力（Enter/追加ボタン、オートコンプリート）</li>
+                  <li>カスタム属性入力（キー・値ペア、オートコンプリート）</li>
+                  <li>作成者（読み取り専用）</li>
+                  <li>アクセス権限設定</li>
+                  <li>投稿ボタン・下書き保存ボタン・キャンセルボタン</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">4. ランキング (page-ranking)</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>週間ランキング: スコア = いいね×3 + コメント×2 + 閲覧×1</li>
+                  <li>月間ランキング: スコア = いいね×5 + コメント×2 + 閲覧×1</li>
+                  <li>上位10件表示、1〜3位はメダルカラー</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">5. 通知機能</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>ベルアイコンで未読バッジ表示</li>
+                  <li>いいね・コメント時に記事作成者へ通知送信</li>
+                  <li>通知パネル、クリックで該当記事へ遷移</li>
+                  <li>すべて既読ボタン</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">6. 権限管理</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>作成者: 常に read_edit_delete</li>
+                  <li>everyone/user/group 単位で権限設定</li>
+                  <li>最高権限が適用される</li>
+                  <li>Domo APIからユーザー・グループ一覧取得</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">7. 更新履歴</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>編集保存時に旧バージョンのスナップショット保存</li>
+                  <li>履歴モーダルでバージョン一覧表示</li>
+                  <li>差分モーダルで変更前後を並列比較</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Test Specification Document -->
+            <div id="doc-content-test" class="doc-content hidden">
+              <div class="prose max-w-none">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">目的</h3>
+                <p class="text-sm text-gray-700 mb-6">過去に発生したバグの先祖返り防止と、主要機能の動作確認</p>
+
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">テストケース一覧</h3>
+                <div class="space-y-3">
+                  <!-- TC-001 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">最高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-001: 編集ボタン動作確認（先祖返り防止）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> setupEventListeners()内のadd-category-btnハンドラに不正コードが混入し、編集ボタンのイベントリスナーが登録されなくなるバグが発生した</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>記事一覧から任意の記事をクリック</li>
+                        <li>詳細ページで「編集」ボタンをクリック</li>
+                        <li>編集フォームが表示されることを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 編集フォームページに遷移し、既存データが入力済みで表示される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> ボタンをクリックしても何も起きない、コンソールにエラーが出る</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-002 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">最高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-002: add-category-btnのイベントハンドラ確認（先祖返り防止）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> else if (block.type === 'file') という不正コードが混入していた</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームを開く</li>
+                        <li>カテゴリ欄の「+」ボタンをクリック</li>
+                        <li>新規カテゴリ入力欄が表示/非表示トグルすることを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 入力欄がトグル表示され、表示時はフォーカスが当たる</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> コンソールエラー、ボタンが反応しない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-003 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-003: ファイル添付・詳細表示・ダウンロード</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> fileタイプのブロックが詳細ページで表示されないバグがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームを開く</li>
+                        <li>任意のファイル（PDF等）をドラッグ&amp;ドロップまたはファイル選択</li>
+                        <li>投稿する</li>
+                        <li>投稿した記事の詳細ページを開く</li>
+                        <li>ファイルブロックが表示されることを確認</li>
+                        <li>「ダウンロード」ボタンをクリック</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> ファイル名とダウンロードボタンが表示され、クリックでダウンロードが開始される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> ファイルが表示されない、ダウンロードできない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-004 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-004: 画像添付・詳細表示・ダウンロード</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> 画像にダウンロードリンクが追加された</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームを開く</li>
+                        <li>画像ファイルをエディタに追加</li>
+                        <li>投稿する</li>
+                        <li>詳細ページで画像が表示されることを確認</li>
+                        <li>画像下のダウンロードリンクをクリック</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 画像がインライン表示され、ファイル名付きダウンロードリンクが表示される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 画像が表示されない、ダウンロードリンクがない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-005 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-005: スクリーンショット貼り付け時のファイル名自動生成</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> クリップボードからの画像貼り付け時にユニークなファイル名が生成されるよう修正された</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームを開く</li>
+                        <li>画面をスクリーンショット（PrintScreen等）</li>
+                        <li>エディタ内でCtrl+Vでペースト</li>
+                        <li>投稿する</li>
+                        <li>詳細ページで画像のダウンロードリンクのファイル名を確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> screenshot_&lt;数字&gt;_&lt;英数字&gt;.png 形式のファイル名が表示される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> ファイル名が image.png のまま、またはファイル名が空</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-006 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-006: saveKnowledge()のtextBuffer宣言確認（先祖返り防止）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> textBuffer変数の宣言漏れによりエラーが発生するバグがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームでタイトル・カテゴリ・内容を入力</li>
+                        <li>「投稿する」ボタンをクリック</li>
+                        <li>正常に保存されることを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 「ナレッジを投稿しました」トーストが表示され、一覧ページに遷移する</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> コンソールに「textBuffer is not defined」エラー、保存されない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-007 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-007: 添付画像一覧セクションのダウンロード</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>画像を含む記事の詳細ページを開く</li>
+                        <li>「添付画像」セクションのサムネイルにマウスオーバー</li>
+                        <li>「DL」ボタンが表示されることを確認</li>
+                        <li>DLボタンをクリック</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> ホバー時にDLボタンが表示され、クリックでダウンロードが開始される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> DLボタンが表示されない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-008 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-008: 権限による編集・削除ボタン制御</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>自分が作成した記事の詳細ページを開く</li>
+                        <li>編集・削除ボタンが有効であることを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 作成者は編集・削除ボタンが両方有効</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 作成者なのにボタンが無効（disabled）</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-009 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-009: 更新履歴の保存と表示</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>既存記事を編集して保存</li>
+                        <li>詳細ページで「履歴」ボタンをクリック</li>
+                        <li>履歴モーダルにバージョンが表示されることを確認</li>
+                        <li>「変更を確認」をクリックして差分モーダルを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 変更前後の内容が並列表示される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 履歴が表示されない、差分が表示されない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-010 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded">低</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-010: 通知機能</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>他ユーザーの記事にいいね・コメントをする</li>
+                        <li>ベルアイコンの未読バッジを確認</li>
+                        <li>通知パネルを開いて通知内容を確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 未読バッジが表示され、通知内容が正しく表示される</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Manual Document -->
+            <div id="doc-content-manual" class="doc-content hidden">
+              <div class="prose max-w-none">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">目次</h3>
+                <ul class="list-disc list-inside mb-6 text-sm text-blue-600">
+                  <li><a href="#manual-startup" class="hover:underline">初回起動</a></li>
+                  <li><a href="#manual-read" class="hover:underline">記事を読む</a></li>
+                  <li><a href="#manual-search" class="hover:underline">記事を検索・絞り込む</a></li>
+                  <li><a href="#manual-post" class="hover:underline">記事を投稿する</a></li>
+                  <li><a href="#manual-edit" class="hover:underline">記事を編集する</a></li>
+                  <li><a href="#manual-delete" class="hover:underline">記事を削除する</a></li>
+                  <li><a href="#manual-like" class="hover:underline">いいね・コメント</a></li>
+                  <li><a href="#manual-history" class="hover:underline">更新履歴を確認する</a></li>
+                  <li><a href="#manual-ranking" class="hover:underline">ランキングを見る</a></li>
+                  <li><a href="#manual-permissions" class="hover:underline">権限設定について</a></li>
+                  <li><a href="#manual-notes" class="hover:underline">注意事項</a></li>
+                </ul>
+
+                <h3 id="manual-startup" class="text-xl font-semibold text-gray-900 mb-3 mt-8">初回起動</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>Domoのアプリページを開く</li>
+                  <li>初回はサンプルデータ（3件の記事）が自動作成される</li>
+                  <li>ヘッダー右上に現在のログインユーザー名が表示される</li>
+                </ol>
+
+                <h3 id="manual-read" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を読む</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>「記事一覧」ページで読みたい記事カードをクリック</li>
+                  <li>詳細ページで内容を確認</li>
+                  <li>添付ファイルは「ダウンロード」ボタンでダウンロード</li>
+                  <li>添付画像は画像下のリンクまたは「添付画像」セクションのDLボタンでダウンロード</li>
+                </ol>
+
+                <h3 id="manual-search" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を検索・絞り込む</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>検索バーにキーワードを入力（タイトル・本文・タグ・カスタム属性を横断検索）</li>
+                  <li>カテゴリ・タグ・作成者でフィルター</li>
+                  <li>「カスタム属性で絞り込み」の「+ 条件を追加」でカスタム属性フィルターを追加</li>
+                  <li>並べ替えで表示順を変更</li>
+                </ol>
+
+                <h3 id="manual-post" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を投稿する</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>「新規投稿」ボタンをクリック</li>
+                  <li>タイトルを入力（必須）</li>
+                  <li>カテゴリを選択、または「+」ボタンで新規カテゴリを入力（必須）</li>
+                  <li>内容エディタにテキストを入力</li>
+                  <li>画像・ファイルの添付方法:
+                    <ul class="list-disc list-inside ml-6 mt-1 space-y-1">
+                      <li>エディタ内でCtrl+Vでクリップボードから貼り付け</li>
+                      <li>エディタ内にドラッグ&amp;ドロップ</li>
+                      <li>「ファイルを選択」ボタンでファイル選択</li>
+                    </ul>
+                  </li>
+                  <li>タグを入力してEnterまたは「追加」ボタン（オートコンプリートあり）</li>
+                  <li>カスタム属性を「+ 属性を追加」で追加</li>
+                  <li>アクセス権限を設定（デフォルト: 全員が読取+編集）</li>
+                  <li>「投稿する」または「下書き保存」をクリック</li>
+                </ol>
+
+                <h3 id="manual-edit" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を編集する</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>記事詳細ページで「編集」ボタンをクリック（編集権限が必要）</li>
+                  <li>内容を修正</li>
+                  <li>「投稿する」をクリックして保存</li>
+                  <li>保存時に自動的に更新履歴が作成される</li>
+                </ol>
+
+                <h3 id="manual-delete" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を削除する</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>記事詳細ページで「削除」ボタンをクリック（削除権限が必要）</li>
+                  <li>確認ダイアログで「はい」をクリック</li>
+                </ol>
+
+                <h3 id="manual-like" class="text-xl font-semibold text-gray-900 mb-3 mt-8">いいね・コメント</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>詳細ページのハートボタンでいいねをトグル</li>
+                  <li>コメント欄にテキストを入力して「投稿」ボタン</li>
+                  <li>自分のコメントは「削除」ボタンで削除可能</li>
+                </ul>
+
+                <h3 id="manual-history" class="text-xl font-semibold text-gray-900 mb-3 mt-8">更新履歴を確認する</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>記事詳細ページで「履歴」ボタンをクリック（履歴がある場合のみ有効）</li>
+                  <li>バージョン一覧から「変更を確認」をクリック</li>
+                  <li>変更前後の差分を確認</li>
+                </ol>
+
+                <h3 id="manual-ranking" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ランキングを見る</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>「ランキング」タブをクリック</li>
+                  <li>週間・月間タブで切り替え</li>
+                  <li>スコア計算式はタブ下に表示</li>
+                </ol>
+
+                <h3 id="manual-permissions" class="text-xl font-semibold text-gray-900 mb-3 mt-8">権限設定について</h3>
+                <table class="w-full text-sm border border-gray-200 mb-6">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">権限レベル</th>
+                      <th class="px-4 py-3 text-center font-medium border-b border-gray-200">閲覧</th>
+                      <th class="px-4 py-3 text-center font-medium border-b border-gray-200">編集</th>
+                      <th class="px-4 py-3 text-center font-medium border-b border-gray-200">削除</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr>
+                      <td class="px-4 py-3">読取のみ</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                      <td class="px-4 py-3 text-center text-red-600">×</td>
+                      <td class="px-4 py-3 text-center text-red-600">×</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3">読取+編集</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                      <td class="px-4 py-3 text-center text-red-600">×</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3">読取+編集+削除</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                      <td class="px-4 py-3 text-center text-green-600 font-bold">○</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-6">
+                  <li>作成者は常に「読取+編集+削除」権限を持つ</li>
+                  <li>複数の権限設定がある場合、最も高い権限が適用される</li>
+                </ul>
+
+                <h3 id="manual-notes" class="text-xl font-semibold text-gray-900 mb-3 mt-8">注意事項</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li>ファイル・画像はBase64形式でDomoのAppDBに保存されます</li>
+                  <li>大きなファイルはAppDBの容量制限に注意してください</li>
+                  <li>スクリーンショット貼り付け時は自動的にユニークなファイル名（screenshot_xxx.png）が付与されます</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-3 max-w-sm" role="region" aria-live="polite" aria-label="通知">
+    <!-- Toast notifications will be dynamically inserted here -->
+  </div>
+
+  <!-- Knowledge Card Template -->
+  <template id="knowledge-card-template">
+    <article class="knowledge-card bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer" role="listitem">
+      <div class="p-5">
+        <!-- 1. タイトル -->
+        <h3 class="text-lg font-semibold text-gray-900 mb-3 knowledge-title line-clamp-2">タイトル</h3>
+        
+        <!-- 2. カテゴリバッジ -->
+        <div class="mb-3">
+          <span class="category-badge px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap">カテゴリ</span>
+        </div>
+        
+        <!-- 3. 概要テキスト -->
+        <div class="knowledge-excerpt text-sm text-gray-600 mb-3 line-clamp-3">
+          内容の抜粋がここに表示されます...
+        </div>
+        
+        <!-- 4. タグ -->
+        <div class="knowledge-tags flex flex-wrap gap-2 mb-3">
+          <!-- Tags will be inserted here -->
+        </div>
+        
+        <!-- 5. サムネイル -->
+        <div class="knowledge-thumbnail mb-3 hidden">
+          <img class="knowledge-thumbnail-img w-full h-40 object-cover rounded-lg" src="" alt="サムネイル">
+        </div>
+        
+        <!-- 6. 作成者・投稿日 -->
+        <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
+          <div class="flex items-center gap-2">
+            <img class="knowledge-author-avatar w-6 h-6 rounded-full border border-gray-300 hidden" src="" alt="作成者アバター">
+            <span class="knowledge-author-name">作成者</span>
+          </div>
+          <span class="knowledge-date">2024-01-01</span>
+        </div>
+        
+        <!-- 7. いいね・コメント・権限バッジ -->
+        <div class="flex items-center gap-4 pt-3 border-t border-gray-100">
+          <div class="flex items-center gap-1 text-sm text-gray-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+            </svg>
+            <span class="knowledge-like-count">0</span>
+          </div>
+          <div class="flex items-center gap-1 text-sm text-gray-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+            <span class="knowledge-comment-count">0</span>
+          </div>
+          <div class="ml-auto">
+            <span class="knowledge-permission-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+              読取＋編集
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <!-- Ranking Card Template -->
+  <template id="ranking-card-template">
+    <article class="ranking-card bg-white border border-gray-200 rounded-lg p-5 flex items-center gap-4 hover:shadow-md transition cursor-pointer">
+      <div class="ranking-badge flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg">
+        <span class="ranking-number">1</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h3 class="ranking-title text-lg font-semibold text-gray-900 mb-1 truncate">タイトル</h3>
+        <div class="flex items-center gap-3 text-sm text-gray-600">
+          <span class="ranking-category px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">カテゴリ</span>
+          <span class="ranking-author flex items-center gap-1">
+            <img class="ranking-author-avatar w-5 h-5 rounded-full border border-gray-300 hidden" src="" alt="作成者アバター">
+            <span class="ranking-author-name">作成者</span>
+          </span>
+        </div>
+      </div>
+      <div class="flex-shrink-0 flex items-center gap-4 text-sm text-gray-600">
+        <div class="flex items-center gap-1">
+          <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+          </svg>
+          <span class="ranking-likes font-semibold">0</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+          </svg>
+          <span class="ranking-comments">0</span>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <!-- Comment Template -->
+  <template id="comment-template">
+    <div class="comment-item flex gap-3 p-4 bg-gray-50 rounded-lg">
+      <img class="comment-avatar w-10 h-10 rounded-full border-2 border-gray-300 flex-shrink-0 hidden" src="" alt="コメント者アバター">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="comment-author text-sm font-semibold text-gray-900">コメント者</span>
+          <span class="comment-date text-xs text-gray-500">2024-01-01 12:00</span>
+        </div>
+        <p class="comment-body text-sm text-gray-700 whitespace-pre-wrap">コメント本文</p>
+        <button class="comment-delete-btn hidden mt-2 text-xs text-red-500 hover:text-red-600 transition">削除</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Notification Item Template -->
+  <template id="notification-template">
+    <div class="notification-item p-3 hover:bg-gray-50 cursor-pointer transition border-b border-gray-100 last:border-b-0">
+      <div class="flex items-start gap-3">
+        <svg class="notification-icon w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+        </svg>
+        <div class="flex-1 min-w-0">
+          <p class="notification-message text-sm text-gray-900">通知メッセージ</p>
+          <p class="notification-time text-xs text-gray-500 mt-1">1時間前</p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Toast Template (Hidden) -->
+  <template id="toast-template">
+    <div class="toast bg-white border-l-4 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-sm" role="alert">
+      <div class="flex-shrink-0">
+        <svg class="toast-icon h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <div class="flex-1">
+        <p class="toast-message text-sm font-medium text-gray-900">通知メッセージ</p>
+      </div>
+      <button class="toast-close flex-shrink-0 text-gray-400 hover:text-gray-600 transition" aria-label="閉じる">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </template>
+
+  <!-- Permission Entry Row Template -->
+  <template id="permission-entry-template">
+    <tr class="permission-entry bg-white hover:bg-gray-50">
+      <td class="px-4 py-3 permission-target-name text-gray-900">全員</td>
+      <td class="px-4 py-3">
+        <span class="permission-level-label text-sm text-gray-700">読取＋編集</span>
+      </td>
+      <td class="px-4 py-3 text-center">
+        <button class="permission-remove-btn text-red-500 hover:text-red-600 p-1 transition focus:ring-2 focus:ring-red-500 rounded" aria-label="削除">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </td>
+    </tr>
+  </template>
+
+  <!-- Confirmation Dialog Template -->
+  <template id="confirm-dialog-template">
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3 confirm-title">確認</h3>
+        <p class="text-sm text-gray-600 mb-6 confirm-message">この操作を実行してもよろしいですか?</p>
+        <div class="flex gap-3">
+          <button class="confirm-yes flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+            はい
+          </button>
+          <button class="confirm-no flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</body></html>
