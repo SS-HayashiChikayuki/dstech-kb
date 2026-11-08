@@ -365,6 +365,20 @@ function setupEventListeners() {
   document.getElementById('detail-delete-btn').addEventListener('click', deleteKnowledge);
   document.getElementById('detail-download-json-btn').addEventListener('click', downloadAsJson);
   document.getElementById('bulk-export-json-btn').addEventListener('click', bulkExportAsJsonZip);
+  document.getElementById('detail-download-pdf-btn').addEventListener('click', openPdfOptionsModal);
+  document.getElementById('close-pdf-options-modal').addEventListener('click', closePdfOptionsModal);
+  document.getElementById('pdf-options-cancel').addEventListener('click', closePdfOptionsModal);
+  document.getElementById('pdf-options-confirm').addEventListener('click', confirmPdfOptions);
+  document.getElementById('pdf-options-select-all').addEventListener('click', () => setAllPdfOptions(true));
+  document.getElementById('pdf-options-clear-all').addEventListener('click', () => setAllPdfOptions(false));
+  document.getElementById('pdf-options-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'pdf-options-modal') closePdfOptionsModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('pdf-options-modal').classList.contains('hidden')) {
+      closePdfOptionsModal();
+    }
+  });
   document.getElementById('detail-download-csv-btn').addEventListener('click', downloadAsCsv);
   document.getElementById('submit-comment-btn').addEventListener('click', submitComment);
 
@@ -1778,6 +1792,249 @@ async function bulkExportAsJsonZip() {
   } catch (error) {
     console.error('Failed to bulk export:', error);
     showToast('一括エクスポートに失敗しました', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ===== PDF 出力項目の選択モーダル =====
+const PDF_OPTION_GROUPS = {
+  title: [
+    { key: 'title', label: 'タイトル' },
+  ],
+  overview: [
+    { key: 'id', label: '記事ID' },
+    { key: 'category', label: 'カテゴリ' },
+    { key: 'tags', label: 'タグ' },
+    { key: 'author', label: '作成者' },
+    { key: 'createdAt', label: '作成日時' },
+    { key: 'updatedAt', label: '更新日時' },
+  ],
+  detail: [
+    { key: 'text', label: '本文' },
+    { key: 'images', label: '画像' },
+    { key: 'files', label: '添付ファイル名' },
+  ],
+};
+const PDF_OPTIONS_STORAGE_KEY = 'kbshare.pdfOptions';
+
+// 前回の選択（固定項目のみ）を読み込む。保存が使えない環境では全項目ON
+function loadPdfOptionPrefs() {
+  try {
+    const raw = localStorage.getItem(PDF_OPTIONS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function savePdfOptionPrefs(prefs) {
+  try {
+    localStorage.setItem(PDF_OPTIONS_STORAGE_KEY, JSON.stringify(prefs));
+  } catch (e) {
+    // 保存できなくても出力には影響しない
+  }
+}
+
+function createPdfOptionCheckbox(container, name, value, label, checked) {
+  const wrap = document.createElement('label');
+  wrap.className = 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.className = 'pdf-option w-4 h-4 rounded border-gray-300';
+  input.dataset.group = name;
+  input.value = value;
+  input.checked = checked;
+  input.addEventListener('change', updatePdfConfirmState);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(input);
+  wrap.appendChild(span);
+  container.appendChild(wrap);
+}
+
+function openPdfOptionsModal() {
+  const item = knowledgeItems.find(i => i.id === currentKnowledgeId);
+  if (!item) return;
+
+  const prefs = loadPdfOptionPrefs();
+  ['title', 'overview', 'detail'].forEach(group => {
+    const container = document.getElementById(`pdf-options-group-${group}`);
+    container.innerHTML = '';
+    PDF_OPTION_GROUPS[group].forEach(opt => {
+      createPdfOptionCheckbox(container, 'field', opt.key, opt.label, prefs[opt.key] !== false);
+    });
+  });
+
+  // カスタム属性は記事ごとにキーが異なるため、その記事のキーを個別に選択（初期値はすべてON）
+  const customContainer = document.getElementById('pdf-options-group-custom');
+  customContainer.innerHTML = '';
+  const customKeys = [...new Set((item.customAttributes || []).map(a => a && a.key).filter(Boolean))];
+  document.getElementById('pdf-options-custom-fieldset').classList.toggle('hidden', customKeys.length === 0);
+  customKeys.forEach(key => createPdfOptionCheckbox(customContainer, 'custom', key, key, true));
+
+  updatePdfConfirmState();
+  document.getElementById('pdf-options-modal').classList.remove('hidden');
+  document.getElementById('pdf-options-confirm').focus();
+}
+
+function closePdfOptionsModal() {
+  document.getElementById('pdf-options-modal').classList.add('hidden');
+}
+
+function setAllPdfOptions(checked) {
+  document.querySelectorAll('#pdf-options-modal .pdf-option').forEach(cb => { cb.checked = checked; });
+  updatePdfConfirmState();
+}
+
+function updatePdfConfirmState() {
+  const anyChecked = Array.from(document.querySelectorAll('#pdf-options-modal .pdf-option')).some(cb => cb.checked);
+  document.getElementById('pdf-options-confirm').disabled = !anyChecked;
+}
+
+function confirmPdfOptions() {
+  const fields = new Set();
+  const customKeys = new Set();
+  document.querySelectorAll('#pdf-options-modal .pdf-option').forEach(cb => {
+    if (!cb.checked) return;
+    if (cb.dataset.group === 'custom') customKeys.add(cb.value);
+    else fields.add(cb.value);
+  });
+
+  const prefs = {};
+  Object.values(PDF_OPTION_GROUPS).flat().forEach(opt => { prefs[opt.key] = fields.has(opt.key); });
+  savePdfOptionPrefs(prefs);
+
+  closePdfOptionsModal();
+  downloadAsPdf({ fields, customKeys });
+}
+
+// ===== PDF 出力 =====
+// 構成: 1. 記事タイトル / 2. 記事の概要（カテゴリ・タグ・作成者・日時・カスタム属性）/ 3. 記事詳細（本文・画像・添付ファイル名）
+// options.fields: 出力する固定項目のキー、options.customKeys: 出力するカスタム属性のキー
+function buildPdfElement(item, options) {
+  const fields = options.fields;
+  const customKeys = options.customKeys;
+  const FONT = '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif';
+  const el = (tag, style, text) => {
+    const e = document.createElement(tag);
+    if (style) e.style.cssText = style;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+
+  const root = el('div', `font-family:${FONT};color:#2B241F;font-size:11pt;line-height:1.7;width:180mm;background:#fff;`);
+
+  // 1. 記事タイトル
+  if (fields.has('title')) {
+    root.appendChild(el('h1', 'font-size:20pt;font-weight:bold;margin:0 0 4mm;padding-bottom:3mm;border-bottom:2px solid #2B241F;', item.title));
+  }
+
+  // 2. 記事の概要（選択された項目のみ。1行も無ければ見出しごと省略）
+  const table = el('table', 'width:100%;border-collapse:collapse;font-size:10pt;');
+  const addRow = (label, value) => {
+    if (value == null || value === '') return;
+    const tr = el('tr');
+    tr.appendChild(el('th', 'width:35mm;text-align:left;vertical-align:top;background:#F3EDE4;border:1px solid #D3C6B4;padding:2mm 3mm;font-weight:bold;', label));
+    tr.appendChild(el('td', 'border:1px solid #D3C6B4;padding:2mm 3mm;white-space:pre-wrap;word-break:break-all;', value));
+    table.appendChild(tr);
+  };
+  if (fields.has('id')) addRow('記事ID', String(item.id ?? ''));
+  if (fields.has('category')) addRow('カテゴリ', item.category);
+  if (fields.has('tags')) addRow('タグ', (item.tags || []).join(', '));
+  if (fields.has('author')) addRow('作成者', item.authorName);
+  if (fields.has('createdAt')) addRow('作成日時', item.createdAt ? formatDateTime(item.createdAt) : '');
+  if (fields.has('updatedAt')) addRow('更新日時', item.updatedAt ? formatDateTime(item.updatedAt) : '');
+  (item.customAttributes || []).forEach(attr => {
+    if (attr && attr.key && customKeys.has(attr.key)) addRow(attr.key, attr.value || '');
+  });
+  if (table.rows.length > 0) {
+    root.appendChild(el('h2', 'font-size:13pt;font-weight:bold;margin:6mm 0 2mm;', '記事の概要'));
+    root.appendChild(table);
+  }
+
+  // 3. 記事詳細（本文・画像・添付ファイル名のうち選択されたもの。何も無ければ見出しごと省略）
+  const body = el('div', '');
+  let imageIndex = 0;
+  (item.content || []).forEach(block => {
+    if (block.type === 'text') {
+      if (!fields.has('text')) return;
+      body.appendChild(el('div', 'white-space:pre-wrap;word-break:break-all;margin:0 0 3mm;', block.value));
+    } else if (block.type === 'image' && block.value) {
+      if (!fields.has('images')) return;
+      imageIndex++;
+      const fig = el('div', 'margin:3mm 0;page-break-inside:avoid;break-inside:avoid;');
+      const img = el('img', 'max-width:100%;max-height:230mm;border:1px solid #E6DDD0;');
+      img.src = block.value;
+      img.crossOrigin = 'anonymous';
+      fig.appendChild(img);
+      fig.appendChild(el('div', 'font-size:8.5pt;color:#6B5D52;margin-top:1mm;', block.name || `image_${imageIndex}.png`));
+      body.appendChild(fig);
+    } else if (block.type === 'file') {
+      if (!fields.has('files')) return;
+      body.appendChild(el('div', 'margin:2mm 0;padding:2mm 3mm;background:#FAF7F2;border:1px solid #E6DDD0;font-size:10pt;', `添付ファイル: ${block.name || 'file'}`));
+    }
+  });
+  if (body.childNodes.length > 0) {
+    root.appendChild(el('h2', 'font-size:13pt;font-weight:bold;margin:8mm 0 2mm;', '記事詳細'));
+    root.appendChild(body);
+  }
+
+  return root;
+}
+
+async function downloadAsPdf(options) {
+  const item = knowledgeItems.find(i => i.id === currentKnowledgeId);
+  if (!item) return;
+  if (!options) return;
+
+  if (typeof html2pdf === 'undefined') {
+    showToast('PDFライブラリを読み込めなかったため、PDFを出力できません', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('detail-download-pdf-btn');
+  if (btn) btn.disabled = true;
+  showToast('PDFを作成しています...', 'info');
+
+  try {
+    const element = buildPdfElement(item, options);
+    if (element.childNodes.length === 0) {
+      showToast('選択した項目に出力できる内容がありません', 'error');
+      return;
+    }
+
+    // 画像の読み込み完了を待ってから描画する（未読込のまま描画するとレイアウトが崩れ、本文が欠ける）
+    await Promise.all(Array.from(element.querySelectorAll('img')).map(img =>
+      img.complete && img.naturalWidth > 0
+        ? Promise.resolve()
+        : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
+    ));
+
+    // スクロール位置がずれていると html2canvas の描画範囲がずれて下部（記事詳細）が欠けるため、
+    // 描画中だけ先頭にスクロールし、終わったら元に戻す
+    const prevScrollX = window.scrollX;
+    const prevScrollY = window.scrollY;
+    window.scrollTo(0, 0);
+    try {
+      await html2pdf()
+        .set({
+          margin: [15, 15, 15, 15],
+          filename: `${sanitizeFileName(item.title)}.pdf`,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'], avoid: ['img', 'tr'] }
+        })
+        .from(element)
+        .save();
+    } finally {
+      window.scrollTo(prevScrollX, prevScrollY);
+    }
+    showToast('PDFをダウンロードしました', 'success');
+  } catch (error) {
+    console.error('Failed to export PDF:', error);
+    showToast('PDFの出力に失敗しました', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }

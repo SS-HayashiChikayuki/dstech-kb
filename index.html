@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/ryuu.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style type="text/tailwindcss">
     @theme {
       --color-base-bg: #F5F0E8;
@@ -490,6 +491,9 @@
                 <button id="detail-download-csv-btn" class="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition focus:ring-2 focus:ring-teal-500">
                   CSV
                 </button>
+                <button id="detail-download-pdf-btn" class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  PDF
+                </button>
                 <button id="detail-history-btn" class="px-4 py-2 bg-gray-500 text-white text-sm font-medium rounded-lg hover:bg-gray-600 transition focus:ring-2 focus:ring-gray-500">
                   履歴
                 </button>
@@ -771,6 +775,46 @@
       </div>
 
       <!-- History Diff Modal -->
+      <!-- PDF Export Options Modal -->
+      <div id="pdf-options-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="pdf-options-title">
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 id="pdf-options-title" class="text-lg font-semibold text-gray-900">PDFに出力する項目を選択</h3>
+            <button id="close-pdf-options-modal" class="text-gray-400 hover:text-gray-600 transition" aria-label="閉じる">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="overflow-y-auto flex-1 p-6 space-y-5">
+            <div class="flex gap-2">
+              <button type="button" id="pdf-options-select-all" class="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition">すべて選択</button>
+              <button type="button" id="pdf-options-clear-all" class="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition">すべて解除</button>
+            </div>
+            <fieldset>
+              <legend class="text-sm font-semibold text-gray-900 mb-2">記事タイトル</legend>
+              <div id="pdf-options-group-title" class="grid grid-cols-2 gap-2"></div>
+            </fieldset>
+            <fieldset>
+              <legend class="text-sm font-semibold text-gray-900 mb-2">記事の概要</legend>
+              <div id="pdf-options-group-overview" class="grid grid-cols-2 gap-2"></div>
+            </fieldset>
+            <fieldset id="pdf-options-custom-fieldset">
+              <legend class="text-sm font-semibold text-gray-900 mb-2">カスタム属性</legend>
+              <div id="pdf-options-group-custom" class="grid grid-cols-2 gap-2"></div>
+            </fieldset>
+            <fieldset>
+              <legend class="text-sm font-semibold text-gray-900 mb-2">記事詳細</legend>
+              <div id="pdf-options-group-detail" class="grid grid-cols-2 gap-2"></div>
+            </fieldset>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+            <button type="button" id="pdf-options-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition">キャンセル</button>
+            <button type="button" id="pdf-options-confirm" class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed">PDFを出力</button>
+          </div>
+        </div>
+      </div>
+
       <div id="history-diff-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div class="p-6 border-b border-gray-200 flex justify-between items-center">
