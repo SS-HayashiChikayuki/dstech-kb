@@ -1,225 +1,227 @@
 {
-   "id": "8379ce5a-5a03-4851-8b9e-a6b0ec30b8cd",
-   "name": "ナレッジ管理入力アプリの開発ガイド",
-   "description": null,
-   "version": "0.0.41",
-   "draft": false,
-   "publicAssetsEnabled": true,
-   "flags": {},
-   "scopes": [],
-   "datasetsMapping": [],
-   "collectionsMapping": [
-      {
-         "name": "knowledgeItems",
-         "id": "9f3552c2-6942-48d6-86c1-029e1cc64624",
-         "defaultPermission": [
-            "READ",
-            "CREATE_CONTENT",
-            "READ_CONTENT",
-            "UPDATE_CONTENT",
-            "DELETE_CONTENT"
-         ],
-         "schema": {
-            "columns": [
-               {
-                  "type": "STRING",
-                  "name": "title"
-               },
-               {
-                  "type": "STRING",
-                  "name": "category"
-               },
-               {
-                  "type": "STRING",
-                  "name": "content"
-               },
-               {
-                  "type": "STRING",
-                  "name": "tags"
-               },
-               {
-                  "type": "STRING",
-                  "name": "customAttributes"
-               },
-               {
-                  "type": "STRING",
-                  "name": "authorId"
-               },
-               {
-                  "type": "STRING",
-                  "name": "authorName"
-               },
-               {
-                  "type": "STRING",
-                  "name": "status"
-               },
-               {
-                  "type": "DATETIME",
-                  "name": "createdAt"
-               },
-               {
-                  "type": "DATETIME",
-                  "name": "updatedAt"
-               },
-               {
-                  "type": "LONG",
-                  "name": "likeCount"
-               },
-               {
-                  "type": "STRING",
-                  "name": "likedBy"
-               },
-               {
-                  "type": "LONG",
-                  "name": "commentCount"
-               },
-               {
-                  "type": "LONG",
-                  "name": "viewCount"
-               },
-               {
-                  "type": "STRING",
-                  "name": "permissions"
-               }
-            ]
-         },
-         "syncEnabled": false
+  "id": "8379ce5a-5a03-4851-8b9e-a6b0ec30b8cd",
+  "name": "ナレッジ管理入力アプリの開発ガイド",
+  "description": null,
+  "version": "0.0.41",
+  "draft": false,
+  "publicAssetsEnabled": true,
+  "flags": {},
+  "scopes": [],
+  "datasetsMapping": [],
+  "collectionsMapping": [
+    {
+      "name": "knowledgeItems",
+      "id": "9f3552c2-6942-48d6-86c1-029e1cc64624",
+      "defaultPermission": [
+        "READ",
+        "CREATE_CONTENT",
+        "READ_CONTENT",
+        "UPDATE_CONTENT",
+        "DELETE_CONTENT"
+      ],
+      "schema": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "title"
+          },
+          {
+            "type": "STRING",
+            "name": "category"
+          },
+          {
+            "type": "STRING",
+            "name": "content"
+          },
+          {
+            "type": "STRING",
+            "name": "tags"
+          },
+          {
+            "type": "STRING",
+            "name": "customAttributes"
+          },
+          {
+            "type": "STRING",
+            "name": "authorId"
+          },
+          {
+            "type": "STRING",
+            "name": "authorName"
+          },
+          {
+            "type": "STRING",
+            "name": "status"
+          },
+          {
+            "type": "DATETIME",
+            "name": "createdAt"
+          },
+          {
+            "type": "DATETIME",
+            "name": "updatedAt"
+          },
+          {
+            "type": "LONG",
+            "name": "likeCount"
+          },
+          {
+            "type": "STRING",
+            "name": "likedBy"
+          },
+          {
+            "type": "LONG",
+            "name": "commentCount"
+          },
+          {
+            "type": "LONG",
+            "name": "viewCount"
+          },
+          {
+            "type": "STRING",
+            "name": "permissions"
+          }
+        ]
       },
-      {
-         "name": "comments",
-         "id": "bbb5a6e8-7135-4ff2-9ce2-9c8529200925",
-         "defaultPermission": [
-            "READ",
-            "CREATE_CONTENT",
-            "READ_CONTENT",
-            "UPDATE_CONTENT",
-            "DELETE_CONTENT"
-         ],
-         "schema": {
-            "columns": [
-               {
-                  "type": "STRING",
-                  "name": "knowledgeId"
-               },
-               {
-                  "type": "STRING",
-                  "name": "authorId"
-               },
-               {
-                  "type": "STRING",
-                  "name": "authorName"
-               },
-               {
-                  "type": "STRING",
-                  "name": "body"
-               },
-               {
-                  "type": "DATETIME",
-                  "name": "createdAt"
-               }
-            ]
-         },
-         "syncEnabled": false
+      "syncEnabled": false
+    },
+    {
+      "name": "comments",
+      "id": "bbb5a6e8-7135-4ff2-9ce2-9c8529200925",
+      "defaultPermission": [
+        "READ",
+        "CREATE_CONTENT",
+        "READ_CONTENT",
+        "UPDATE_CONTENT",
+        "DELETE_CONTENT"
+      ],
+      "schema": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "knowledgeId"
+          },
+          {
+            "type": "STRING",
+            "name": "authorId"
+          },
+          {
+            "type": "STRING",
+            "name": "authorName"
+          },
+          {
+            "type": "STRING",
+            "name": "body"
+          },
+          {
+            "type": "DATETIME",
+            "name": "createdAt"
+          }
+        ]
       },
-      {
-         "name": "notifications",
-         "id": "e44e6784-9236-4d33-a002-53a98d79099b",
-         "defaultPermission": [
-            "READ",
-            "CREATE_CONTENT",
-            "READ_CONTENT",
-            "UPDATE_CONTENT",
-            "DELETE_CONTENT"
-         ],
-         "schema": {
-            "columns": [
-               {
-                  "type": "STRING",
-                  "name": "recipientId"
-               },
-               {
-                  "type": "STRING",
-                  "name": "type"
-               },
-               {
-                  "type": "STRING",
-                  "name": "actorName"
-               },
-               {
-                  "type": "STRING",
-                  "name": "knowledgeId"
-               },
-               {
-                  "type": "STRING",
-                  "name": "knowledgeTitle"
-               },
-               {
-                  "type": "STRING",
-                  "name": "isRead"
-               },
-               {
-                  "type": "DATETIME",
-                  "name": "createdAt"
-               }
-            ]
-         },
-         "syncEnabled": false
+      "syncEnabled": false
+    },
+    {
+      "name": "notifications",
+      "id": "e44e6784-9236-4d33-a002-53a98d79099b",
+      "defaultPermission": [
+        "READ",
+        "CREATE_CONTENT",
+        "READ_CONTENT",
+        "UPDATE_CONTENT",
+        "DELETE_CONTENT"
+      ],
+      "schema": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "recipientId"
+          },
+          {
+            "type": "STRING",
+            "name": "type"
+          },
+          {
+            "type": "STRING",
+            "name": "actorName"
+          },
+          {
+            "type": "STRING",
+            "name": "knowledgeId"
+          },
+          {
+            "type": "STRING",
+            "name": "knowledgeTitle"
+          },
+          {
+            "type": "STRING",
+            "name": "isRead"
+          },
+          {
+            "type": "DATETIME",
+            "name": "createdAt"
+          }
+        ]
       },
-      {
-         "name": "knowledgeHistory",
-         "id": "24d77a57-1105-4f14-b335-6162657f4f6e",
-         "defaultPermission": [
-            "READ",
-            "CREATE_CONTENT",
-            "READ_CONTENT",
-            "UPDATE_CONTENT",
-            "DELETE_CONTENT"
-         ],
-         "schema": {
-            "columns": [
-               {
-                  "type": "STRING",
-                  "name": "knowledgeId"
-               },
-               {
-                  "type": "LONG",
-                  "name": "version"
-               },
-               {
-                  "type": "DATETIME",
-                  "name": "updatedAt"
-               },
-               {
-                  "type": "STRING",
-                  "name": "updatedBy"
-               },
-               {
-                  "type": "STRING",
-                  "name": "updatedById"
-               },
-               {
-                  "type": "STRING",
-                  "name": "snapshot"
-               }
-            ]
-         },
-         "syncEnabled": false
-      }
-   ],
-   "databasesMapping": null,
-   "accountsMapping": null,
-   "actionsMapping": null,
-   "workflowsMapping": null,
-   "packagesMapping": null,
-   "size": {
-      "width": 1,
-      "height": 1
-   },
-   "fullpage": true,
-   "aiContextId": null,
-   "allowGeolocation": false,
-   "allowCamera": false,
-   "allowMic": false,
-   "allowBluetooth": false,
-   "allowNFC": false
+      "syncEnabled": false
+    },
+    {
+      "name": "knowledgeHistory",
+      "id": "24d77a57-1105-4f14-b335-6162657f4f6e",
+      "defaultPermission": [
+        "READ",
+        "CREATE_CONTENT",
+        "READ_CONTENT",
+        "UPDATE_CONTENT",
+        "DELETE_CONTENT"
+      ],
+      "schema": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "knowledgeId"
+          },
+          {
+            "type": "LONG",
+            "name": "version"
+          },
+          {
+            "type": "DATETIME",
+            "name": "updatedAt"
+          },
+          {
+            "type": "STRING",
+            "name": "updatedBy"
+          },
+          {
+            "type": "STRING",
+            "name": "updatedById"
+          },
+          {
+            "type": "STRING",
+            "name": "snapshot"
+          }
+        ]
+      },
+      "syncEnabled": false
+    }
+  ],
+  "databasesMapping": null,
+  "accountsMapping": null,
+  "actionsMapping": null,
+  "workflowsMapping": null,
+  "packagesMapping": null,
+  "size": {
+    "width": 1,
+    "height": 1
+  },
+  "fullpage": true,
+  "aiContextId": null,
+  "allowGeolocation": false,
+  "allowCamera": false,
+  "allowMic": false,
+  "allowBluetooth": false,
+  "allowNFC": false,
+  "fileName": "manifest.json",
+  "proxyId": "d50fac5b-d5b1-4529-be96-edce6f052f5f"
 }

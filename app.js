@@ -34,13 +34,7 @@ const PERMISSION_LABELS = {
   [PERMISSION_LEVELS.READ_EDIT_DELETE]: '読取＋編集＋削除'
 };
 
-const CATEGORY_COLORS = {
-  '技術': 'bg-blue-100 text-blue-800',
-  '営業': 'bg-green-100 text-green-800',
-  '人事': 'bg-purple-100 text-purple-800',
-  '総務': 'bg-yellow-100 text-yellow-800',
-  '経営': 'bg-red-100 text-red-800'
-};
+// カテゴリ色はカテゴリ名から自動で決定する（applyCategoryColor を参照）
 
 async function init() {
   try {
@@ -173,7 +167,6 @@ async function initializeSampleData() {
       title: 'TypeScript基礎ガイド',
       category: '技術',
       content: [
-        { type: 'image', name: 'typescript-thumbnail.png', value: 'https://placehold.co/600x200/3B82F6/white?text=TypeScript' },
         { type: 'text', value: 'TypeScriptは型安全性を提供するJavaScriptのスーパーセットです。' },
         { type: 'text', value: '静的型チェックにより、開発時のエラーを削減できます。' }
       ],
@@ -519,15 +512,48 @@ function showPage(name) {
     targetPage.style.display = 'block';
   }
 
-  document.querySelectorAll('[id^="btn-nav-"]').forEach(btn => {
-    btn.classList.remove('bg-blue-500', 'text-white');
-    btn.classList.add('bg-gray-200', 'text-gray-700');
+  updateNavStyles(name === 'form' ? 'new' : name);
+}
+
+// ナビゲーションボタンの配色
+// - ページタブ（記事一覧/ランキング/ドキュメント）: 選択中=青、非選択=白地+枠線
+// - 新規投稿: アクションボタンとして常に緑。選択中はリングで強調
+const NAV_TAB_STYLES = {
+  default: {
+    active: ['bg-blue-600', 'text-white', 'border-blue-600', 'shadow-sm', 'hover:bg-blue-700'],
+    inactive: ['bg-white', 'text-gray-700', 'border-gray-300', 'hover:bg-gray-100', 'hover:text-gray-900'],
+  },
+  // ランキング: #33A65E（常に塗り。選択中は濃色＋リング）
+  ranking: {
+    active: ['bg-[#2B8F50]', 'text-white', 'border-[#2B8F50]', 'shadow-sm', 'ring-2', 'ring-offset-2', 'ring-[#33A65E]'],
+    inactive: ['bg-[#33A65E]', 'text-white', 'border-[#33A65E]', 'hover:bg-[#2B8F50]'],
+  },
+  // ドキュメント: #F5B679（白文字だと読みにくいため濃茶の文字）
+  docs: {
+    active: ['bg-[#EBA25E]', 'text-[#3D2200]', 'border-[#EBA25E]', 'shadow-sm', 'ring-2', 'ring-offset-2', 'ring-[#F5B679]'],
+    inactive: ['bg-[#F5B679]', 'text-[#3D2200]', 'border-[#F5B679]', 'hover:bg-[#EBA25E]'],
+  },
+};
+const NAV_ACTION_ACTIVE = ['ring-2', 'ring-offset-2', 'ring-green-500', 'bg-green-700'];
+const NAV_ACTION_INACTIVE = ['bg-green-600'];
+
+function updateNavStyles(activeKey) {
+  ['list', 'ranking', 'docs'].forEach(key => {
+    const btn = document.getElementById(`btn-nav-${key}`);
+    if (!btn) return;
+    const isActive = key === activeKey;
+    const style = NAV_TAB_STYLES[key] || NAV_TAB_STYLES.default;
+    btn.classList.remove(...style.active, ...style.inactive);
+    btn.classList.add(...(isActive ? style.active : style.inactive));
+    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 
-  const activeBtn = document.getElementById(`btn-nav-${name === 'form' ? 'new' : name}`);
-  if (activeBtn) {
-    activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-    activeBtn.classList.add('bg-blue-500', 'text-white');
+  const newBtn = document.getElementById('btn-nav-new');
+  if (newBtn) {
+    const isActive = activeKey === 'new';
+    newBtn.classList.remove(...NAV_ACTION_ACTIVE, ...NAV_ACTION_INACTIVE);
+    newBtn.classList.add(...(isActive ? NAV_ACTION_ACTIVE : NAV_ACTION_INACTIVE));
+    newBtn.setAttribute('aria-current', isActive ? 'page' : 'false');
   }
 }
 
@@ -680,6 +706,20 @@ function renderNotifications() {
         );
         updateNotificationBadge();
       }
+      else if (node.tagName === 'BR') {
+        textBuffer += '\n';
+      }
+      else {
+        const isBlock = ['DIV', 'P', 'BLOCKQUOTE', 'LI', 'UL', 'OL'].includes(node.tagName);
+        if (isBlock) {
+          node.childNodes.forEach(child => processNode(child));
+          if (textBuffer && !textBuffer.endsWith('\n')) {
+            textBuffer += '\n';
+          }
+        } else {
+          node.childNodes.forEach(child => processNode(child));
+        }
+      }
       closeNotificationPanel();
       viewKnowledgeDetail(notif.knowledgeId);
     });
@@ -793,13 +833,25 @@ function renderKnowledgeList() {
     const clone = template.content.cloneNode(true);
     const card = clone.querySelector('.knowledge-card');
 
+    const firstImage = item.content.find(c => c.type === 'image');
+    if (firstImage && firstImage.value) {
+      const thumbnail = clone.querySelector('.knowledge-thumbnail');
+      const thumbnailImg = thumbnail.querySelector('img');
+      thumbnailImg.src = firstImage.value;
+      thumbnailImg.onerror = () => {
+        thumbnail.classList.add('hidden');
+        thumbnail.style.display = '';
+      };
+      thumbnail.classList.remove('hidden');
+      thumbnail.style.display = 'block';
+    }
 
     clone.querySelector('.knowledge-title').textContent = item.title;
 
     const categoryBadge = clone.querySelector('.category-badge');
     categoryBadge.textContent = item.category;
-    const colorClass = CATEGORY_COLORS[item.category] || 'bg-gray-100 text-gray-800';
-    categoryBadge.className = `category-badge px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${colorClass}`;
+    categoryBadge.className = 'category-badge px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap';
+    applyCategoryColor(categoryBadge, item.category);
 
     const excerpt = item.content
       .filter(c => c.type === 'text')
@@ -814,20 +866,11 @@ function renderKnowledgeList() {
     tagsContainer.innerHTML = '';
     (item.tags || []).slice(0, 3).forEach(tag => {
       const tagBadge = document.createElement('span');
-      tagBadge.className = 'tag-badge px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full';
+      tagBadge.className = 'tag-badge px-2 py-1 text-xs rounded-full';
+      applyTagColor(tagBadge, tag);
       tagBadge.textContent = tag;
       tagsContainer.appendChild(tagBadge);
     });
-
-    const firstImage = item.content.find(c => c.type === 'image');
-    const thumbnailDiv = clone.querySelector('.knowledge-thumbnail');
-    const thumbnailImg = clone.querySelector('.knowledge-thumbnail-img');
-    if (firstImage && firstImage.value) {
-      thumbnailImg.src = firstImage.value;
-      thumbnailDiv.classList.remove('hidden');
-    } else {
-      thumbnailDiv.classList.add('hidden');
-    }
 
     clone.querySelector('.knowledge-author-name').textContent = item.authorName;
     clone.querySelector('.knowledge-date').textContent = formatDate(item.createdAt);
@@ -999,14 +1042,15 @@ async function viewKnowledgeDetail(id) {
   
   const categoryBadge = document.getElementById('detail-category');
   categoryBadge.textContent = item.category;
-  const colorClass = CATEGORY_COLORS[item.category] || 'bg-gray-100 text-gray-800';
-  categoryBadge.className = `px-3 py-1 rounded-full text-xs font-medium ${colorClass}`;
+  categoryBadge.className = 'px-3 py-1 rounded-full text-xs font-medium';
+  applyCategoryColor(categoryBadge, item.category);
 
   const tagsContainer = document.getElementById('detail-tags');
   tagsContainer.innerHTML = '';
   (item.tags || []).forEach(tag => {
     const badge = document.createElement('span');
-    badge.className = 'px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full';
+    badge.className = 'px-2 py-1 text-xs rounded-full';
+    applyTagColor(badge, tag);
     badge.textContent = tag;
     tagsContainer.appendChild(badge);
   });
@@ -1635,16 +1679,42 @@ function addTag() {
   }
 }
 
+// タグ名から色相を決めて、タグごとに少しずつ違う色にする（同じタグは常に同じ色）
+function getTagHue(tag) {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  }
+  // 黄金角(約137.5°)で色相を散らし、似た名前のタグでも色が近くなりにくくする
+  return Math.round((hash * 137.508) % 360);
+}
+
+function applyTagColor(el, tag) {
+  const hue = getTagHue(tag);
+  el.style.backgroundColor = `hsl(${hue}, 70%, 92%)`;
+  el.style.color = `hsl(${hue}, 55%, 28%)`;
+  el.style.border = `1px solid hsl(${hue}, 50%, 80%)`;
+}
+
+// カテゴリもタグと同じ仕組みで色分け。タグと区別できるよう背景をやや濃くする
+function applyCategoryColor(el, category) {
+  const hue = getTagHue(category || '');
+  el.style.backgroundColor = `hsl(${hue}, 65%, 84%)`;
+  el.style.color = `hsl(${hue}, 60%, 22%)`;
+  el.style.border = `1px solid hsl(${hue}, 55%, 72%)`;
+}
+
 function renderFormTags() {
   const container = document.getElementById('tags-container');
   container.innerHTML = '';
-  
+
   currentFormTags.forEach(tag => {
     const badge = document.createElement('div');
-    badge.className = 'flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full';
+    badge.className = 'flex items-center gap-1 px-3 py-1 text-sm rounded-full';
+    applyTagColor(badge, tag);
     badge.innerHTML = `
       <span>${tag}</span>
-      <button type="button" class="hover:text-blue-900">
+      <button type="button" class="hover:opacity-60">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -2239,15 +2309,15 @@ function renderRanking(period) {
     if (index < 3) {
       badge.style.backgroundColor = badgeColors[index];
     } else {
-      badge.style.backgroundColor = '#6B7280';
+      badge.style.backgroundColor = '#85766A';
     }
     
     clone.querySelector('.ranking-title').textContent = item.title;
     
     const categoryBadge = clone.querySelector('.ranking-category');
     categoryBadge.textContent = item.category;
-    const colorClass = CATEGORY_COLORS[item.category] || 'bg-gray-100 text-gray-800';
-    categoryBadge.className = `ranking-category px-2 py-1 rounded-full text-xs font-medium ${colorClass}`;
+    categoryBadge.className = 'ranking-category px-2 py-1 rounded-full text-xs font-medium';
+    applyCategoryColor(categoryBadge, item.category);
     
     clone.querySelector('.ranking-author-name').textContent = item.authorName;
     clone.querySelector('.ranking-likes').textContent = item.likeCount || 0;

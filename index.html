@@ -9,12 +9,69 @@
   <script src="https://unpkg.com/ryuu.js"></script>
   <style type="text/tailwindcss">
     @theme {
-      --color-base-bg: #F5F7FA;
-      --color-card-bg: #E8EBF0;
-      --color-text-primary: #1F2937;
-      --color-accent-blue: #3B82F6;
-      --color-accent-green: #10B981;
-      
+      --color-base-bg: #F5F0E8;
+      --color-card-bg: #EAE2D6;
+      --color-text-primary: #2B241F;
+      --color-accent-blue: #1C398E;
+      --color-accent-green: #65743C;
+
+      /* ===== アースカラーテーマ: Tailwind 標準パレットを上書き ===== */
+      /* gray → ウォームグレー／ベージュ */
+      --color-gray-50:  #FAF7F2;
+      --color-gray-100: #F3EDE4;
+      --color-gray-200: #E6DDD0;
+      --color-gray-300: #D3C6B4;
+      --color-gray-400: #A99A86;
+      --color-gray-500: #85766A;
+      --color-gray-600: #6B5D52;
+      --color-gray-700: #54483F;
+      --color-gray-800: #3D342D;
+      --color-gray-900: #2B241F;
+
+      /* blue → アクセント。主に使われる 500 を Tailwind の blue-900 (#1C398E) に、ホバー等はさらに濃く */
+      --color-blue-500: #1C398E;
+      --color-blue-600: #172F78;
+      --color-blue-700: #142A6A;
+      --color-blue-800: #11245C;
+      --color-blue-900: #0E1E4D;
+
+      /* green → オリーブ／セージ */
+      --color-green-50:  #F4F6EC;
+      --color-green-100: #E6EBD3;
+      --color-green-200: #CFD8B0;
+      --color-green-500: #7A8B4A;
+      --color-green-600: #65743C;
+      --color-green-700: #515D31;
+      --color-green-800: #3F4826;
+
+      /* red → レンガ（エラー・削除の意味は保つ） */
+      --color-red-50:  #FBF1EE;
+      --color-red-100: #F5DDD5;
+      --color-red-200: #EAC0B2;
+      --color-red-500: #B5523B;
+      --color-red-600: #9C4330;
+      --color-red-700: #803627;
+      --color-red-800: #652B20;
+
+      /* yellow → オーカー */
+      --color-yellow-100: #F6EBCF;
+      --color-yellow-700: #8A6420;
+      --color-yellow-800: #6E4F19;
+
+      /* orange → テラコッタ */
+      --color-orange-100: #F7E3D6;
+      --color-orange-800: #7A3E22;
+
+      /* purple / indigo → くすんだプラム */
+      --color-purple-100: #EFE3EA;
+      --color-purple-500: #8A5A78;
+      --color-purple-600: #744B65;
+      --color-purple-700: #5F3D53;
+      --color-purple-800: #4D3243;
+      --color-purple-900: #3B2633;
+      --color-indigo-500: #6B5B7B;
+      --color-indigo-600: #584B66;
+
       --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
@@ -53,7 +110,7 @@
     
     .drop-zone-active {
       border-color: var(--color-accent-blue);
-      background-color: rgba(59, 130, 246, 0.05);
+      background-color: rgba(28, 57, 142, 0.05);
     }
     
     @keyframes slideInRight {
@@ -118,18 +175,20 @@
       <!-- Navigation Tabs -->
       <nav class="mt-6">
         <div class="flex justify-between items-center gap-4">
-          <div class="flex gap-2">
-          <button id="btn-nav-list" class="px-6 py-3 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition focus:ring-2 focus:ring-blue-500" aria-label="記事一覧">
+          <div class="flex items-center gap-2">
+          <button id="btn-nav-list" class="px-6 py-3 text-sm font-medium rounded-lg border bg-blue-600 text-white border-blue-600 shadow-sm hover:bg-blue-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" aria-label="記事一覧" aria-current="page">
             記事一覧
           </button>
-          <button id="btn-nav-ranking" class="px-6 py-3 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500" aria-label="ランキング">
+          <button id="btn-nav-ranking" class="px-6 py-3 text-sm font-medium rounded-lg border bg-[#33A65E] text-white border-[#33A65E] hover:bg-[#2B8F50] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#33A65E] focus-visible:ring-offset-2" aria-label="ランキング">
             ランキング
           </button>
-          <button id="btn-nav-new" class="px-6 py-3 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600 transition focus:ring-2 focus:ring-green-500" aria-label="新規投稿">
-            新規投稿
-          </button>
-          <button id="btn-nav-docs" class="px-6 py-3 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition focus:ring-2 focus:ring-gray-500" aria-label="ドキュメント">
+          <button id="btn-nav-docs" class="px-6 py-3 text-sm font-medium rounded-lg border bg-[#F5B679] text-[#3D2200] border-[#F5B679] hover:bg-[#EBA25E] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5B679] focus-visible:ring-offset-2" aria-label="ドキュメント">
             ドキュメント
+          </button>
+          <span class="w-px h-8 bg-gray-300 mx-2" aria-hidden="true"></span>
+          <button id="btn-nav-new" class="inline-flex items-center gap-1 px-6 py-3 text-sm font-semibold rounded-lg bg-green-600 text-white shadow-sm hover:bg-green-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2" aria-label="新規投稿">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            新規投稿
           </button>
           </div>
           <button id="api-debug-btn-nav" class="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition focus:ring-2 focus:ring-blue-500" aria-label="APIデバッグ">
@@ -1354,31 +1413,28 @@
   <template id="knowledge-card-template">
     <article class="knowledge-card bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer" role="listitem">
       <div class="p-5">
-        <!-- 1. タイトル -->
-        <h3 class="text-lg font-semibold text-gray-900 mb-3 knowledge-title line-clamp-2">タイトル</h3>
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-gray-900 flex-1 mr-3 knowledge-title line-clamp-2">タイトル</h3>
+        </div>
         
-        <!-- 2. カテゴリバッジ -->
-        <div class="mb-3">
+        <div class="flex flex-wrap gap-2 mb-3">
           <span class="category-badge px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap">カテゴリ</span>
         </div>
         
-        <!-- 3. 概要テキスト -->
         <div class="knowledge-excerpt text-sm text-gray-600 mb-3 line-clamp-3">
           内容の抜粋がここに表示されます...
         </div>
         
-        <!-- 4. タグ -->
         <div class="knowledge-tags flex flex-wrap gap-2 mb-3">
           <!-- Tags will be inserted here -->
         </div>
         
-        <!-- 5. サムネイル -->
-        <div class="knowledge-thumbnail mb-3 hidden">
-          <img class="knowledge-thumbnail-img w-full h-40 object-cover rounded-lg" src="" alt="サムネイル">
+        <!-- Thumbnail Image -->
+        <div class="knowledge-thumbnail hidden mt-3 mb-3">
+          <img src="" alt="ナレッジのサムネイル" class="w-full h-48 object-cover rounded-lg">
         </div>
         
-        <!-- 6. 作成者・投稿日 -->
-        <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
+        <div class="flex justify-between items-center text-xs text-gray-500 pt-3 border-t border-gray-100">
           <div class="flex items-center gap-2">
             <img class="knowledge-author-avatar w-6 h-6 rounded-full border border-gray-300 hidden" src="" alt="作成者アバター">
             <span class="knowledge-author-name">作成者</span>
@@ -1386,8 +1442,7 @@
           <span class="knowledge-date">2024-01-01</span>
         </div>
         
-        <!-- 7. いいね・コメント・権限バッジ -->
-        <div class="flex items-center gap-4 pt-3 border-t border-gray-100">
+        <div class="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
           <div class="flex items-center gap-1 text-sm text-gray-600">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
