@@ -146,7 +146,7 @@
     <header class="mb-8">
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">ナレッジ管理システム</h1>
+          <h1 class="text-3xl font-bold text-gray-900">総研テックKB</h1>
           <p class="mt-1 text-sm text-gray-600">社内のナレッジを一元管理・共有</p>
         </div>
         <div class="flex items-center gap-4">
@@ -569,9 +569,15 @@
 
           <!-- Content Editor -->
           <div>
-            <label for="content-editor" class="block text-sm font-medium text-gray-700 mb-2">
-              内容 <span class="text-red-500">*</span>
-            </label>
+            <div class="flex items-end justify-between mb-2">
+              <label for="content-editor" class="block text-sm font-medium text-gray-700">
+                内容 <span class="text-red-500">*</span>
+              </label>
+              <button type="button" id="insert-code-block-btn" class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label="コードブロックを挿入">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                コードブロックを挿入
+              </button>
+            </div>
             <div id="content-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-label="ナレッジの内容を入力してください。ファイルは Ctrl+V でペーストできます。" class="content-editor w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white focus:border-blue-500 transition" data-placeholder="ナレッジの内容を入力してください。ファイルは Ctrl+V でペーストできます。"></div>
             <p class="mt-2 text-xs text-gray-500">
               ファイル: Ctrl+V でクリップボードからペースト、またはドラッグ&amp;ドロップ
@@ -960,7 +966,7 @@
   id: string (AppDB自動採番),
   title: string,
   category: string,
-  content: Array&lt;{type: 'text'|'image'|'file', value: string, name?: string, mimeType?: string}&gt;,
+  content: Array&lt;{type: 'text'|'image'|'file'|'code', value: string, name?: string, mimeType?: string, language?: string}&gt;,
   tags: string[],
   customAttributes: Array&lt;{key: string, value: string}&gt;,
   authorId: string,

@@ -442,6 +442,7 @@ function setupEventListeners() {
 
   const contentEditor = document.getElementById('content-editor');
   contentEditor.addEventListener('paste', handlePaste);
+  document.getElementById('insert-code-block-btn').addEventListener('click', insertCodeBlockIntoEditor);
   contentEditor.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -723,20 +724,6 @@ function renderNotifications() {
         );
         updateNotificationBadge();
       }
-      else if (node.tagName === 'BR') {
-        textBuffer += '\n';
-      }
-      else {
-        const isBlock = ['DIV', 'P', 'BLOCKQUOTE', 'LI', 'UL', 'OL'].includes(node.tagName);
-        if (isBlock) {
-          node.childNodes.forEach(child => processNode(child));
-          if (textBuffer && !textBuffer.endsWith('\n')) {
-            textBuffer += '\n';
-          }
-        } else {
-          node.childNodes.forEach(child => processNode(child));
-        }
-      }
       closeNotificationPanel();
       viewKnowledgeDetail(notif.knowledgeId);
     });
@@ -775,8 +762,9 @@ function getFilteredKnowledgeItems() {
   if (searchQuery) {
     filtered = filtered.filter(item => {
       const titleMatch = item.title.toLowerCase().includes(searchQuery);
+      // 本文テキストとコードブロックの中身を検索対象にする
       const contentText = item.content
-        .filter(c => c.type === 'text')
+        .filter(c => c.type === 'text' || c.type === 'code')
         .map(c => c.value)
         .join(' ')
         .toLowerCase();
@@ -1178,6 +1166,8 @@ async function viewKnowledgeDetail(id) {
       img.src = block.value;
       img.className = 'max-w-full h-auto rounded-lg my-3';
       contentEl.appendChild(img);
+    } else if (block.type === 'code') {
+      contentEl.appendChild(createCodeBlockView(block));
     }
   });
 
@@ -1515,6 +1505,8 @@ function editKnowledge() {
         fileDiv.remove();
       });
       editor.appendChild(fileDiv);
+    } else if (block.type === 'code') {
+      editor.appendChild(createEditorCodeBlock(block.language, block.value));
     }
   });
 
@@ -1602,6 +1594,10 @@ function buildExportContent(item) {
 
   const lines = (item.content || []).map(block => {
     if (block.type === 'text') return block.value;
+    if (block.type === 'code') {
+      // Markdown と同じ ``` 形式で埋め込む
+      return '```' + (block.language || '') + '\n' + block.value + '\n```';
+    }
     if (block.type === 'image') {
       // 詳細画面のダウンロード名と同じ規則（名前が無ければ image_N.png）
       const rawName = block.name || `image_${images.length + 1}.png`;
@@ -1814,6 +1810,7 @@ const PDF_OPTION_GROUPS = {
   ],
   detail: [
     { key: 'text', label: '本文' },
+    { key: 'code', label: 'コードブロック' },
     { key: 'images', label: '画像' },
     { key: 'files', label: '添付ファイル名' },
   ],
@@ -1962,6 +1959,13 @@ function buildPdfElement(item, options) {
     if (block.type === 'text') {
       if (!fields.has('text')) return;
       body.appendChild(el('div', 'white-space:pre-wrap;word-break:break-all;margin:0 0 3mm;', block.value));
+    } else if (block.type === 'code') {
+      if (!fields.has('code')) return;
+      // 印刷向けに薄い背景＋等幅フォント（長い行は折り返す）
+      const codeWrap = el('div', 'margin:2mm 0 4mm;border:1px solid #D3C6B4;border-radius:2mm;overflow:hidden;');
+      codeWrap.appendChild(el('div', 'background:#E6DDD0;font-size:8.5pt;padding:1mm 3mm;color:#54483F;', getCodeLanguageLabel(block.language) || 'コード'));
+      codeWrap.appendChild(el('pre', 'margin:0;padding:3mm;background:#FAF7F2;font-family:Consolas,"Courier New",Menlo,monospace;font-size:9pt;line-height:1.5;white-space:pre-wrap;word-break:break-all;tab-size:4;', block.value));
+      body.appendChild(codeWrap);
     } else if (block.type === 'image' && block.value) {
       if (!fields.has('images')) return;
       imageIndex++;
@@ -2342,6 +2346,172 @@ function hideAttrKeyAutocomplete() {
   document.getElementById('attr-key-autocomplete').classList.add('hidden');
 }
 
+// ===== コードブロック =====
+// データ形式: { type: 'code', language: 'json', value: '...' }
+const CODE_LANGUAGES = [
+  { value: '', label: 'テキスト' },
+  { value: 'json', label: 'JSON' },
+  { value: 'bash', label: 'Bash / Shell' },
+  { value: 'powershell', label: 'PowerShell' },
+  { value: 'bat', label: 'コマンドプロンプト' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'xml', label: 'XML / HTML' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'terraform', label: 'Terraform' },
+];
+
+function getCodeLanguageLabel(language) {
+  const found = CODE_LANGUAGES.find(l => l.value === (language || ''));
+  return found ? found.label : language;
+}
+
+// エディタ内のコードブロック（言語選択＋textarea。インデントや空白をそのまま保持する）
+function createEditorCodeBlock(language = '', value = '') {
+  const wrapper = document.createElement('div');
+  wrapper.dataset.type = 'code';
+  wrapper.contentEditable = 'false';
+  wrapper.className = 'code-block-editor my-2 rounded-lg border border-gray-300 overflow-hidden';
+
+  const header = document.createElement('div');
+  header.className = 'flex items-center gap-2 px-3 py-1 bg-gray-700 text-gray-100 text-xs';
+  const label = document.createElement('span');
+  label.textContent = 'コード';
+  label.className = 'font-semibold';
+  const select = document.createElement('select');
+  select.className = 'code-language bg-gray-800 text-gray-100 border border-gray-500 rounded px-1 py-0.5 text-xs';
+  select.setAttribute('aria-label', 'コードの種類');
+  CODE_LANGUAGES.forEach(lang => {
+    const opt = document.createElement('option');
+    opt.value = lang.value;
+    opt.textContent = lang.label;
+    select.appendChild(opt);
+  });
+  if (language && !CODE_LANGUAGES.some(l => l.value === language)) {
+    const opt = document.createElement('option');
+    opt.value = language;
+    opt.textContent = language;
+    select.appendChild(opt);
+  }
+  select.value = language || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'ml-auto text-red-300 hover:text-red-100';
+  removeBtn.textContent = '削除';
+  removeBtn.addEventListener('click', () => wrapper.remove());
+  header.append(label, select, removeBtn);
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'code-input block w-full p-3 bg-gray-900 text-gray-100 text-sm outline-none resize-y';
+  textarea.style.fontFamily = 'Consolas, "Courier New", Menlo, monospace';
+  textarea.style.tabSize = '4';
+  textarea.spellcheck = false;
+  textarea.placeholder = 'ここにJSONやコマンドを入力・貼り付け';
+  textarea.value = value;
+  const autoResize = () => {
+    textarea.rows = Math.min(Math.max(textarea.value.split('\n').length, 3), 30);
+  };
+  autoResize();
+  textarea.addEventListener('input', autoResize);
+  // Tab キーでフォーカス移動せずインデントを入力
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      textarea.value = textarea.value.slice(0, start) + '    ' + textarea.value.slice(end);
+      textarea.selectionStart = textarea.selectionEnd = start + 4;
+      autoResize();
+    }
+  });
+
+  wrapper.append(header, textarea);
+  return wrapper;
+}
+
+// カーソル位置（なければ末尾）にコードブロックを挿入
+function insertCodeBlockIntoEditor() {
+  const editor = document.getElementById('content-editor');
+  const block = createEditorCodeBlock();
+
+  let anchor = null;
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    anchor = sel.anchorNode;
+    while (anchor && anchor.parentNode !== editor) anchor = anchor.parentNode;
+  }
+  if (anchor && anchor !== editor) {
+    anchor.after(block);
+  } else {
+    editor.appendChild(block);
+  }
+
+  // ブロックの後ろに続けて文章を書けるよう空行を用意
+  if (!block.nextSibling) {
+    const after = document.createElement('div');
+    after.innerHTML = '<br>';
+    editor.appendChild(after);
+  }
+  block.querySelector('textarea').focus();
+}
+
+// 詳細画面のコードブロック表示（言語ラベル＋コピーボタン）
+function createCodeBlockView(block) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'my-3 rounded-lg overflow-hidden border border-gray-700';
+
+  const header = document.createElement('div');
+  header.className = 'flex items-center justify-between px-3 py-1 bg-gray-700 text-gray-100 text-xs';
+  const label = document.createElement('span');
+  label.textContent = getCodeLanguageLabel(block.language) || 'コード';
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'px-2 py-0.5 rounded hover:bg-gray-600 transition';
+  copyBtn.textContent = 'コピー';
+  copyBtn.addEventListener('click', async () => {
+    const ok = await copyTextToClipboard(block.value);
+    copyBtn.textContent = ok ? 'コピーしました' : 'コピー失敗';
+    setTimeout(() => { copyBtn.textContent = 'コピー'; }, 1500);
+  });
+  header.append(label, copyBtn);
+
+  const pre = document.createElement('pre');
+  pre.className = 'm-0 p-4 bg-gray-900 text-gray-100 text-sm overflow-x-auto';
+  pre.style.fontFamily = 'Consolas, "Courier New", Menlo, monospace';
+  pre.style.tabSize = '4';
+  const code = document.createElement('code');
+  code.textContent = block.value;
+  pre.appendChild(code);
+
+  wrapper.append(header, pre);
+  return wrapper;
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    // Domo の iframe 内などで Clipboard API が使えない場合のフォールバック
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
 function handlePaste(e) {
   const items = e.clipboardData.items;
   
@@ -2637,6 +2807,16 @@ async function saveKnowledge(status) {
           if (val) content.push({ type: 'file', name, mimeType: mime, value: val });
         }
       }
+      else if (node.dataset && node.dataset.type === 'code') {
+        flushTextBuffer();
+        const textarea = node.querySelector('textarea.code-input');
+        const select = node.querySelector('select.code-language');
+        // 先頭のインデントは保持し、末尾の余分な空行だけ除く
+        const value = textarea ? textarea.value.replace(/\s+$/, '') : '';
+        if (value.trim()) {
+          content.push({ type: 'code', language: select ? select.value : '', value });
+        }
+      }
       else if (node.tagName === 'BR') {
         textBuffer += '\n';
       }
@@ -2877,14 +3057,13 @@ function showHistoryDiff(history) {
   );
   diffEl.appendChild(categorySection);
   
-  const beforeContentText = (before.content || [])
-    .filter(c => c.type === 'text')
-    .map(c => c.value)
+  // コードブロックも ``` で囲んで比較対象に含める
+  const toDiffText = (content) => (content || [])
+    .filter(c => c.type === 'text' || c.type === 'code')
+    .map(c => c.type === 'code' ? '```' + (c.language || '') + '\n' + c.value + '\n```' : c.value)
     .join('\n');
-  const afterContentText = (after.content || [])
-    .filter(c => c.type === 'text')
-    .map(c => c.value)
-    .join('\n');
+  const beforeContentText = toDiffText(before.content);
+  const afterContentText = toDiffText(after.content);
   const contentSection = createDiffSection('テキスト内容',
     beforeContentText,
     afterContentText,
