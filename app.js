@@ -37,30 +37,38 @@ const PERMISSION_LABELS = {
 // カテゴリ色はカテゴリ名から自動で決定する（applyCategoryColor を参照）
 
 async function init() {
+  // どの処理で失敗したかをエラーメッセージに出すため、実行中のステップを記録する
+  let step = '';
   try {
-    await loadCurrentUser();
-    await loadDomoUsers();
-    await loadDomoGroups();
-    await loadKnowledgeItems();
-    await loadComments();
-    await loadNotifications();
-    await loadKnowledgeHistories();
-    
-    if (knowledgeItems.length === 0) {
+    step = 'ユーザー情報の取得'; await loadCurrentUser();
+    step = 'Domoユーザー一覧の取得'; await loadDomoUsers();
+    step = 'Domoグループ一覧の取得'; await loadDomoGroups();
+    step = '記事データの取得'; await loadKnowledgeItems();
+    step = 'コメントの取得'; await loadComments();
+    step = '通知の取得'; await loadNotifications();
+    step = '更新履歴の取得'; await loadKnowledgeHistories();
+
+    if (knowledgeLoadError) {
+      // 取得失敗を「0件」と誤認してサンプルデータを書き込まない
+      const detail = knowledgeLoadError && knowledgeLoadError.message ? knowledgeLoadError.message : String(knowledgeLoadError);
+      showToast(`記事データを取得できませんでした（${detail}）。manifest.json の proxyId / コレクション設定を確認してください。`, 'error');
+    } else if (knowledgeItems.length === 0) {
+      step = 'サンプルデータの作成';
       await initializeSampleData();
       await loadKnowledgeItems();
       await loadComments();
       await loadNotifications();
     }
-    
-    setupEventListeners();
-    updateCurrentUserDisplay();
-    updateNotificationBadge();
-    renderKnowledgeList();
-    showPage('list');
+
+    step = 'イベント設定'; setupEventListeners();
+    step = 'ユーザー表示'; updateCurrentUserDisplay();
+    step = '通知バッジ表示'; updateNotificationBadge();
+    step = '記事一覧の表示'; renderKnowledgeList();
+    step = '画面切り替え'; showPage('list');
   } catch (error) {
-    console.error('Initialization error:', error);
-    showToast('アプリの初期化中にエラーが発生しました', 'error');
+    console.error(`Initialization error at [${step}]:`, error);
+    const detail = error && error.message ? error.message : String(error);
+    showToast(`アプリの初期化中にエラーが発生しました（${step}: ${detail}）`, 'error');
   }
 }
 
@@ -109,6 +117,9 @@ async function loadDomoGroups() {
   }
 }
 
+// 記事データの読み込みに失敗したかどうか（失敗時にサンプルデータを書き込まないため）
+let knowledgeLoadError = null;
+
 async function loadKnowledgeItems() {
   try {
     const response = await domo.get(`/domo/datastores/v1/collections/${COLLECTIONS.KNOWLEDGE}/documents`);
@@ -116,9 +127,11 @@ async function loadKnowledgeItems() {
       id: doc.id,
       ...doc.content
     }));
+    knowledgeLoadError = null;
   } catch (error) {
     console.error('Failed to load knowledge items:', error);
     knowledgeItems = [];
+    knowledgeLoadError = error;
   }
 }
 
@@ -408,10 +421,12 @@ function setupEventListeners() {
 
   document.getElementById('add-category-btn').addEventListener('click', () => {
     const newCategoryInput = document.getElementById('new-category-input');
-    newCategoryInput.classList.toggle('hidden');
-    if (!newCategoryInput.classList.contains('hidden')) {
-      document.getElementById('new-category-value').focus();
-    }
+    showNewCategoryInput(newCategoryInput.classList.contains('hidden'));
+  });
+
+  // 既存カテゴリを選んだら新規入力欄は閉じる
+  document.getElementById('category-select').addEventListener('change', (e) => {
+    if (e.target.value) showNewCategoryInput(false);
   });
 
   const tagsInput = document.getElementById('tags-input');
@@ -630,7 +645,7 @@ function printCurrentDoc() {
     <head>
       <meta charset="UTF-8">
       <title>${title}</title>
-      <style>body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; padding: 20px; } table { border-collapse: collapse; width: 100%; margin: 10px 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f0f0f0; } pre { background-color: #f5f5f5; padding: 10px; overflow-x: auto; }</style>
+      <style>body { font-family: "Open Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; padding: 20px; } table { border-collapse: collapse; width: 100%; margin: 10px 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f0f0f0; } pre { background-color: #f5f5f5; padding: 10px; overflow-x: auto; }</style>
     </head>
     <body><h1>${title}</h1>${content.innerHTML}</body>
     </html>
@@ -918,6 +933,84 @@ function renderKnowledgeList() {
   updateFilters();
 }
 
+// 新規登録・編集フォームのカテゴリ候補に表示しないカテゴリ
+const HIDDEN_FORM_CATEGORIES = ['経営', '総務'];
+
+function getExistingCategories() {
+  const set = new Set();
+  knowledgeItems.forEach(i => {
+    const cat = i && i.category != null ? String(i.category).trim() : '';
+    if (cat && !HIDDEN_FORM_CATEGORIES.includes(cat)) set.add(cat);
+  });
+  return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+}
+
+// 新規登録・編集フォームのカテゴリ選択肢を既存記事のカテゴリで構成する
+function populateCategorySelect(selected = '') {
+  const select = document.getElementById('category-select');
+  if (!select) return;
+  const categories = getExistingCategories();
+  const selectedStr = selected != null ? String(selected).trim() : '';
+  if (selectedStr && !categories.includes(selectedStr)) categories.push(selectedStr);
+
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = categories.length ? 'カテゴリを選択' : '既存のカテゴリはありません（＋で新規入力）';
+  select.appendChild(placeholder);
+  categories.forEach(cat => {
+    const option = document.createElement('option');
+    option.value = cat;
+    option.textContent = cat;
+    select.appendChild(option);
+  });
+  select.value = selectedStr;
+}
+
+function showNewCategoryInput(show) {
+  const wrap = document.getElementById('new-category-input');
+  const input = document.getElementById('new-category-value');
+  const select = document.getElementById('category-select');
+  const btn = document.getElementById('add-category-btn');
+  wrap.classList.toggle('hidden', !show);
+  if (show) {
+    select.value = '';
+    select.required = false;
+    input.focus();
+  } else {
+    input.value = '';
+    select.required = true;
+  }
+  if (btn) {
+    btn.setAttribute('aria-label', show ? '新規カテゴリ入力を閉じる' : 'カテゴリを追加');
+    btn.title = show ? '既存カテゴリから選択する' : '新しいカテゴリを入力する';
+  }
+}
+
+// 記事本文中の添付ファイル（挿入した位置に表示するダウンロードリンク）
+function createFileLinkView(block) {
+  const fileName = block.name || 'ファイル';
+  const link = document.createElement('a');
+  link.href = block.value || '#';
+  link.download = fileName;
+  link.title = `${fileName} をダウンロード`;
+  link.className = 'my-2 flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition no-underline';
+  link.innerHTML = `
+    <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+    </svg>
+    <span class="file-link-name text-sm text-blue-700 flex-1 break-all"></span>
+    <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+    </svg>`;
+  link.querySelector('.file-link-name').textContent = fileName;
+  if (!block.value) {
+    link.removeAttribute('href');
+    link.classList.add('opacity-60');
+  }
+  return link;
+}
+
 function updateFilters() {
   const categories = [...new Set(knowledgeItems.filter(i => i.status === 'published').map(i => i.category))];
   const authors = [...new Set(knowledgeItems.filter(i => i.status === 'published').map(i => i.authorName))];
@@ -1168,6 +1261,8 @@ async function viewKnowledgeDetail(id) {
       contentEl.appendChild(img);
     } else if (block.type === 'code') {
       contentEl.appendChild(createCodeBlockView(block));
+    } else if (block.type === 'file') {
+      contentEl.appendChild(createFileLinkView(block));
     }
   });
 
@@ -1446,15 +1541,8 @@ function editKnowledge() {
 
   document.getElementById('title-input').value = item.title;
   
-  const categorySelect = document.getElementById('category-select');
-  categorySelect.value = item.category;
-  if (!categorySelect.value) {
-    const option = document.createElement('option');
-    option.value = item.category;
-    option.textContent = item.category;
-    categorySelect.appendChild(option);
-    categorySelect.value = item.category;
-  }
+  showNewCategoryInput(false);
+  populateCategorySelect(item.category);
 
   const editor = document.getElementById('content-editor');
   editor.innerHTML = '';
@@ -1914,7 +2002,7 @@ function confirmPdfOptions() {
 function buildPdfElement(item, options) {
   const fields = options.fields;
   const customKeys = options.customKeys;
-  const FONT = '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif';
+  const FONT = '"Open Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif';
   const el = (tag, style, text) => {
     const e = document.createElement(tag);
     if (style) e.style.cssText = style;
@@ -1922,11 +2010,11 @@ function buildPdfElement(item, options) {
     return e;
   };
 
-  const root = el('div', `font-family:${FONT};color:#2B241F;font-size:11pt;line-height:1.7;width:180mm;background:#fff;`);
+  const root = el('div', `font-family:${FONT};color:#2F332F;font-size:11pt;line-height:1.7;width:180mm;background:#fff;`);
 
   // 1. 記事タイトル
   if (fields.has('title')) {
-    root.appendChild(el('h1', 'font-size:20pt;font-weight:bold;margin:0 0 4mm;padding-bottom:3mm;border-bottom:2px solid #2B241F;', item.title));
+    root.appendChild(el('h1', 'font-size:20pt;font-weight:bold;margin:0 0 4mm;padding-bottom:3mm;border-bottom:2px solid #2F332F;', item.title));
   }
 
   // 2. 記事の概要（選択された項目のみ。1行も無ければ見出しごと省略）
@@ -1934,8 +2022,8 @@ function buildPdfElement(item, options) {
   const addRow = (label, value) => {
     if (value == null || value === '') return;
     const tr = el('tr');
-    tr.appendChild(el('th', 'width:35mm;text-align:left;vertical-align:top;background:#F3EDE4;border:1px solid #D3C6B4;padding:2mm 3mm;font-weight:bold;', label));
-    tr.appendChild(el('td', 'border:1px solid #D3C6B4;padding:2mm 3mm;white-space:pre-wrap;word-break:break-all;', value));
+    tr.appendChild(el('th', 'width:35mm;text-align:left;vertical-align:top;background:#F0F2F0;border:1px solid #CDD2CD;padding:2mm 3mm;font-weight:bold;', label));
+    tr.appendChild(el('td', 'border:1px solid #CDD2CD;padding:2mm 3mm;white-space:pre-wrap;word-break:break-all;', value));
     table.appendChild(tr);
   };
   if (fields.has('id')) addRow('記事ID', String(item.id ?? ''));
@@ -1962,23 +2050,23 @@ function buildPdfElement(item, options) {
     } else if (block.type === 'code') {
       if (!fields.has('code')) return;
       // 印刷向けに薄い背景＋等幅フォント（長い行は折り返す）
-      const codeWrap = el('div', 'margin:2mm 0 4mm;border:1px solid #D3C6B4;border-radius:2mm;overflow:hidden;');
-      codeWrap.appendChild(el('div', 'background:#E6DDD0;font-size:8.5pt;padding:1mm 3mm;color:#54483F;', getCodeLanguageLabel(block.language) || 'コード'));
-      codeWrap.appendChild(el('pre', 'margin:0;padding:3mm;background:#FAF7F2;font-family:Consolas,"Courier New",Menlo,monospace;font-size:9pt;line-height:1.5;white-space:pre-wrap;word-break:break-all;tab-size:4;', block.value));
+      const codeWrap = el('div', 'margin:2mm 0 4mm;border:1px solid #CDD2CD;border-radius:2mm;overflow:hidden;');
+      codeWrap.appendChild(el('div', 'background:#E3E6E3;font-size:8.5pt;padding:1mm 3mm;color:#434843;', getCodeLanguageLabel(block.language) || 'コード'));
+      codeWrap.appendChild(el('pre', 'margin:0;padding:3mm;background:#F7F8F7;font-family:Consolas,"Courier New",Menlo,monospace;font-size:9pt;line-height:1.5;white-space:pre-wrap;word-break:break-all;tab-size:4;', block.value));
       body.appendChild(codeWrap);
     } else if (block.type === 'image' && block.value) {
       if (!fields.has('images')) return;
       imageIndex++;
       const fig = el('div', 'margin:3mm 0;page-break-inside:avoid;break-inside:avoid;');
-      const img = el('img', 'max-width:100%;max-height:230mm;border:1px solid #E6DDD0;');
+      const img = el('img', 'max-width:100%;max-height:230mm;border:1px solid #E3E6E3;');
       img.src = block.value;
       img.crossOrigin = 'anonymous';
       fig.appendChild(img);
-      fig.appendChild(el('div', 'font-size:8.5pt;color:#6B5D52;margin-top:1mm;', block.name || `image_${imageIndex}.png`));
+      fig.appendChild(el('div', 'font-size:8.5pt;color:#575D57;margin-top:1mm;', block.name || `image_${imageIndex}.png`));
       body.appendChild(fig);
     } else if (block.type === 'file') {
       if (!fields.has('files')) return;
-      body.appendChild(el('div', 'margin:2mm 0;padding:2mm 3mm;background:#FAF7F2;border:1px solid #E6DDD0;font-size:10pt;', `添付ファイル: ${block.name || 'file'}`));
+      body.appendChild(el('div', 'margin:2mm 0;padding:2mm 3mm;background:#F7F8F7;border:1px solid #E3E6E3;font-size:10pt;', `添付ファイル: ${block.name || 'file'}`));
     }
   });
   if (body.childNodes.length > 0) {
@@ -2127,9 +2215,8 @@ async function downloadAsCsv() {
 function clearForm() {
   try {
     document.getElementById('title-input').value = '';
-    document.getElementById('category-select').value = '';
-    document.getElementById('new-category-input').classList.add('hidden');
-    document.getElementById('new-category-value').value = '';
+    showNewCategoryInput(false);
+    populateCategorySelect('');
     document.getElementById('content-editor').innerHTML = '';
     document.getElementById('author-input').value = currentUser ? currentUser.name : '';
     document.getElementById('created-at-input').value = formatDateTime(new Date().toISOString());
@@ -2169,6 +2256,7 @@ function addTag() {
 
 // タグ名から色相を決めて、タグごとに少しずつ違う色にする（同じタグは常に同じ色）
 function getTagHue(tag) {
+  tag = tag == null ? '' : String(tag);
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
@@ -2756,7 +2844,9 @@ async function saveKnowledge(status) {
   const title = document.getElementById('title-input').value.trim();
   const categorySelectVal = document.getElementById('category-select').value;
   const newCategoryVal = document.getElementById('new-category-value').value.trim();
-  const category = categorySelectVal || newCategoryVal;
+  const newCategoryOpen = !document.getElementById('new-category-input').classList.contains('hidden');
+  // 新規入力欄が開いていて値があればそちらを優先、なければ既存選択を使う
+  const category = (newCategoryOpen && newCategoryVal) ? newCategoryVal : (categorySelectVal || newCategoryVal);
   
   console.log('title:', title, 'category:', category);
   
@@ -2793,6 +2883,16 @@ async function saveKnowledge(status) {
           imgName = fileData.name || imgName;
         }
         content.push({ type: 'image', name: imgName, value: imgSrc });
+      }
+      else if (node.tagName === 'IMG') {
+        // Web ページや Teams/Word からコピーした画像は data-type を持たない <img> として貼り付けられる
+        const src = node.getAttribute('src') || '';
+        if (src) {
+          flushTextBuffer();
+          const ext = (src.match(/^data:image\/(\w+)/) || [])[1] || 'png';
+          const name = node.title || node.alt || ('image_' + Date.now() + '.' + (ext === 'jpeg' ? 'jpg' : ext));
+          content.push({ type: 'image', name, value: src });
+        }
       }
       else if (node.dataset && node.dataset.type === 'file') {
         flushTextBuffer();
@@ -2841,8 +2941,18 @@ async function saveKnowledge(status) {
   });
   
   flushTextBuffer();
-  
+
   if (content.length === 0) {
+    // 想定外の構造で解析できなかった場合も、表示されている文字があれば本文として保存する
+    const fallbackText = (editor.innerText || '').trim();
+    if (fallbackText) {
+      console.warn('Editor content was not parsed; falling back to innerText. innerHTML:', editor.innerHTML.slice(0, 2000));
+      content.push({ type: 'text', value: fallbackText });
+    }
+  }
+
+  if (content.length === 0) {
+    console.warn('Empty content. editor.innerHTML:', editor.innerHTML.slice(0, 2000));
     showToast('内容を入力してください', 'error');
     return;
   }

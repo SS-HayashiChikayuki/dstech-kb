@@ -3,6 +3,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="社内の知見を共有・蓄積するための統合ナレッジ管理プラットフォーム">
   <title>総研テックKB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="app.js" defer=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,77 +14,72 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style type="text/tailwindcss">
     @theme {
-      --color-base-bg: #F5F0E8;
-      --color-card-bg: #EAE2D6;
-      --color-text-primary: #2B241F;
-      --color-accent-blue: #1C398E;
-      --color-accent-green: #65743C;
+      /* ===== Domo App「DB営業予算管理」風テーマ ===== */
+      --color-base-bg: #F2F4F2;      /* ページ背景: ごく薄いグレー */
+      --color-card-bg: #FFFFFF;      /* カード: 白 */
+      --color-text-primary: #2F332F;
+      --color-heading: #2F6E40;      /* 見出し: 濃いグリーン */
+      --color-accent-blue: #4C63B0;
+      --color-accent-green: #3E8C52;
 
-      /* ===== アースカラーテーマ: Tailwind 標準パレットを上書き ===== */
-      /* gray → ウォームグレー／ベージュ */
-      --color-gray-50:  #FAF7F2;
-      --color-gray-100: #F3EDE4;
-      --color-gray-200: #E6DDD0;
-      --color-gray-300: #D3C6B4;
-      --color-gray-400: #A99A86;
-      --color-gray-500: #85766A;
-      --color-gray-600: #6B5D52;
-      --color-gray-700: #54483F;
-      --color-gray-800: #3D342D;
-      --color-gray-900: #2B241F;
+      /* gray → ニュートラルグレー */
+      --color-gray-50:  #F7F8F7;
+      --color-gray-100: #F0F2F0;
+      --color-gray-200: #E3E6E3;
+      --color-gray-300: #CDD2CD;
+      --color-gray-400: #9AA19A;
+      --color-gray-500: #6E756E;
+      --color-gray-600: #575D57;
+      --color-gray-700: #434843;
+      --color-gray-800: #2F332F;
+      --color-gray-900: #1F221F;
 
-      /* blue → アクセント。主に使われる 500 を Tailwind の blue-900 (#1C398E) に、ホバー等はさらに濃く */
-      --color-blue-500: #1C398E;
-      --color-blue-600: #172F78;
-      --color-blue-700: #142A6A;
-      --color-blue-800: #11245C;
-      --color-blue-900: #0E1E4D;
+      /* blue → 表の数値・リンクに使われている落ち着いたインディゴ（ボタン・リンク・選択中タブ） */
+      --color-blue-50:  #EEF1F9;
+      --color-blue-100: #DDE3F3;
+      --color-blue-200: #BCC7E7;
+      --color-blue-500: #4C63B0;
+      --color-blue-600: #405499;
+      --color-blue-700: #354679;
+      --color-blue-800: #2B3963;
+      --color-blue-900: #222D4E;
 
-      /* green → オリーブ／セージ */
-      --color-green-50:  #F4F6EC;
-      --color-green-100: #E6EBD3;
-      --color-green-200: #CFD8B0;
-      --color-green-500: #7A8B4A;
-      --color-green-600: #65743C;
-      --color-green-700: #515D31;
-      --color-green-800: #3F4826;
+      /* green → KPIタイル・コピーボタンの Domo グリーン */
+      --color-green-50:  #EEF6F0;
+      --color-green-100: #D8EBDD;
+      --color-green-200: #B4D8BE;
+      --color-green-500: #4A9A5E;
+      --color-green-600: #3E8C52;
+      --color-green-700: #2F6E40;
+      --color-green-800: #255733;
 
-      /* red → レンガ（エラー・削除の意味は保つ） */
-      --color-red-50:  #FBF1EE;
-      --color-red-100: #F5DDD5;
-      --color-red-200: #EAC0B2;
-      --color-red-500: #B5523B;
-      --color-red-600: #9C4330;
-      --color-red-700: #803627;
-      --color-red-800: #652B20;
+      /* red → エラー・削除（彩度を抑えた赤） */
+      --color-red-50:  #FCF0EF;
+      --color-red-100: #F8DCDA;
+      --color-red-200: #F0B9B5;
+      --color-red-500: #C9453B;
+      --color-red-600: #AE3A31;
+      --color-red-700: #8F2F28;
+      --color-red-800: #722620;
 
-      /* yellow → オーカー */
-      --color-yellow-100: #F6EBCF;
-      --color-yellow-700: #8A6420;
-      --color-yellow-800: #6E4F19;
+      /* カード・ボタンの角丸を Domo のカードに近い丸みに */
+      --radius-lg: 0.75rem;
 
-      /* orange → テラコッタ */
-      --color-orange-100: #F7E3D6;
-      --color-orange-800: #7A3E22;
-
-      /* purple / indigo → くすんだプラム */
-      --color-purple-100: #EFE3EA;
-      --color-purple-500: #8A5A78;
-      --color-purple-600: #744B65;
-      --color-purple-700: #5F3D53;
-      --color-purple-800: #4D3243;
-      --color-purple-900: #3B2633;
-      --color-indigo-500: #6B5B7B;
-      --color-indigo-600: #584B66;
-
-      /* Backlog に合わせたフォント: 英数字=Helvetica/Arial、日本語=ヒラギノ(Mac)/メイリオ(Windows) */
-      --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      /* フォント: 日本語=Noto Sans JP、英数字=Open Sans（Domo App Studio 風）。読み込めない場合は OS 標準フォント */
+      --font-sans: "Open Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     }
-    
+
     body {
       font-family: var(--font-sans);
       background-color: var(--color-base-bg);
       color: var(--color-text-primary);
+    }
+
+    /* 見出しは Domo のセクション見出しのように濃いグリーン */
+    .app-title,
+    .page-section h2.text-2xl {
+      color: var(--color-heading);
+      letter-spacing: 0.02em;
     }
     
     .content-editor {
@@ -113,7 +111,7 @@
     
     .drop-zone-active {
       border-color: var(--color-accent-blue);
-      background-color: rgba(28, 57, 142, 0.05);
+      background-color: rgba(76, 99, 176, 0.05);
     }
     
     @keyframes slideInRight {
@@ -146,7 +144,7 @@
     <header class="mb-8">
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">総研テックKB</h1>
+          <h1 class="app-title text-3xl font-bold">総研テックKB</h1>
           <p class="mt-1 text-sm text-gray-600">社内のナレッジを一元管理・共有</p>
         </div>
         <div class="flex items-center gap-4">
@@ -928,15 +926,19 @@
                   <tbody>
                     <tr class="border-b border-gray-200">
                       <td class="px-4 py-3 bg-gray-50 font-medium w-1/4">アプリ名</td>
-                      <td class="px-4 py-3">ナレッジ管理システム</td>
+                      <td class="px-4 py-3">総研テックKB（ナレッジ管理システム）</td>
                     </tr>
                     <tr class="border-b border-gray-200">
                       <td class="px-4 py-3 bg-gray-50 font-medium">種別</td>
-                      <td class="px-4 py-3">SPA (Single Page Application)</td>
+                      <td class="px-4 py-3">SPA (Single Page Application) / Domo カスタムアプリ（App Studio に配置）</td>
                     </tr>
                     <tr class="border-b border-gray-200">
                       <td class="px-4 py-3 bg-gray-50 font-medium">技術スタック</td>
-                      <td class="px-4 py-3">HTML / Vanilla JavaScript / Tailwind CSS (CDN) / Domo AppDB (NoSQL)</td>
+                      <td class="px-4 py-3">HTML / Vanilla JavaScript / Tailwind CSS v4 (CDN) / Domo AppDB (NoSQL) / JSZip 3.10.1（ZIP出力） / html2pdf.js 0.10.1（PDF出力） / Google Fonts（Open Sans・Noto Sans JP）</td>
+                    </tr>
+                    <tr class="border-b border-gray-200">
+                      <td class="px-4 py-3 bg-gray-50 font-medium">デザイン</td>
+                      <td class="px-4 py-3">Domo App「DB営業予算管理」に準拠した配色（見出しグリーン #2F6E40、ニュートラルグレー基調）。ナビ: 記事一覧=インディゴ / ランキング=#33A65E / ドキュメント=#F5B679 / 新規投稿=グリーン</td>
                     </tr>
                     <tr>
                       <td class="px-4 py-3 bg-gray-50 font-medium">目的</td>
@@ -960,13 +962,24 @@
                     <tr><td class="px-4 py-3 font-mono text-xs">knowledgeHistory</td><td class="px-4 py-3">更新履歴スナップショット</td></tr>
                   </tbody>
                 </table>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-6">
+                  <li>AppDB へのアクセスは manifest.json の <code class="font-mono text-xs">proxyId</code>（アプリインスタンス＝カード）経由で行う。存在しないIDの場合は 404 になる</li>
+                  <li>利用者には、カードの共有に加えて4つのコレクションへの READ / READ_CONTENT / CREATE_CONTENT / UPDATE_CONTENT / DELETE_CONTENT 権限が必要（不足時は 403）</li>
+                  <li>記事データの取得に失敗した場合はサンプルデータを作成せず、エラー内容をトーストで表示する（取得失敗を0件と誤認して本番データへ書き込まないため）</li>
+                </ul>
 
                 <h3 id="spec-structure" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ナレッジ記事データ構造</h3>
                 <pre class="bg-gray-50 p-4 rounded-lg text-xs overflow-x-auto mb-6"><code>{
   id: string (AppDB自動採番),
   title: string,
   category: string,
-  content: Array&lt;{type: 'text'|'image'|'file'|'code', value: string, name?: string, mimeType?: string, language?: string}&gt;,
+  content: Array&lt;{
+    type: 'text'|'image'|'file'|'code',
+    value: string,      // text: 本文 / image・file: Data URL / code: コード本文
+    name?: string,      // image・file: ファイル名
+    mimeType?: string,  // file: MIMEタイプ
+    language?: string   // code: 言語（json, bash, powershell 等）
+  }&gt;,  // 配列の順序＝本文中の表示位置
   tags: string[],
   customAttributes: Array&lt;{key: string, value: string}&gt;,
   authorId: string,
@@ -1007,24 +1020,30 @@
                 
                 <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">1. 記事一覧 (page-list)</h4>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
-                  <li>公開済み記事をカード形式で表示</li>
-                  <li>全文検索（タイトル・本文・タグ・カスタム属性）</li>
+                  <li>公開済み記事を表形式で表示（タイトル / カテゴリ / 内容のまとめ（本文先頭100文字） / タグ一覧 / 更新日）。行クリックまたは Enter で詳細へ</li>
+                  <li>検索結果件数の表示</li>
+                  <li>検索結果の記事をJSONで一括ダウンロード（ZIP）: knowledge.json ＋ 記事ID別フォルダに添付ファイル（images/・files/）</li>
+                  <li>タグ・カテゴリは名前から算出した色相で色分け（同じ名前は常に同じ色）</li>
+                  <li>全文検索（タイトル・本文・コードブロック・タグ・カスタム属性）</li>
                   <li>カテゴリフィルター</li>
                   <li>タグフィルター（複数選択）</li>
                   <li>作成者フィルター</li>
                   <li>並べ替え（新しい順・古い順・いいね数順）</li>
                   <li>カスタム属性フィルター（キー・値で絞り込み、バッジ表示）</li>
-                  <li>記事カードにサムネイル画像・タグ・いいね数・コメント数・権限バッジ表示</li>
                 </ul>
 
                 <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">2. 記事詳細 (page-detail)</h4>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
                   <li>タイトル・カテゴリ・タグ・作成者・作成日時・更新日時表示</li>
                   <li>カスタム属性表示</li>
-                  <li>コンテンツ表示（テキスト・画像・ファイル混在）</li>
-                  <li>画像: インライン表示 + ファイル名付きダウンロードリンク</li>
-                  <li>ファイル: ファイル名 + ダウンロードボタン</li>
+                  <li>コンテンツ表示（テキスト・画像・ファイル・コードブロック混在、挿入した位置に表示）</li>
+                  <li>画像: インライン表示</li>
+                  <li>ファイル: 本文中の挿入位置にファイル名付きダウンロードリンクを表示</li>
+                  <li>コードブロック: 言語ラベル付きの等幅表示、「コピー」ボタンでクリップボードへコピー</li>
+                  <li>添付ファイル・画像一覧セクション（ファイル名 + ダウンロードボタン）</li>
                   <li>添付画像一覧セクション（サムネイルグリッド、ホバーでDLボタン表示）</li>
+                  <li>JSON / CSV ダウンロード（ZIP: 本体ファイル ＋ 記事IDフォルダに添付ファイル）</li>
+                  <li>PDF出力（出力項目選択モーダル付き）</li>
                   <li>いいねボタン（トグル、通知送信）</li>
                   <li>コメント投稿・表示・削除</li>
                   <li>編集ボタン（権限チェック: read_edit以上）</li>
@@ -1036,9 +1055,13 @@
                 <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">3. 新規投稿・編集フォーム (page-form)</h4>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
                   <li>タイトル入力</li>
-                  <li>カテゴリ選択（既存から選択 or 新規入力）</li>
+                  <li>カテゴリ選択: 既存記事のカテゴリ一覧（重複除去・五十音順）から選択、または「+」ボタンで新規入力。新規入力欄に値があればそちらを優先</li>
+                  <li>カテゴリ候補から除外するカテゴリ: 「経営」「総務」（app.js の HIDDEN_FORM_CATEGORIES で設定。既存記事のカテゴリ自体は変更しない）</li>
                   <li>コンテンツエディタ（contenteditable）</li>
-                  <li>画像・ファイル添付（ペースト・ドラッグ&amp;ドロップ・選択）</li>
+                  <li>コードブロック挿入: 言語選択、Tabキーでインデント（スペース4つ）、高さ自動調整、削除ボタン</li>
+                  <li>画像・ファイル添付（ペースト・ドラッグ&amp;ドロップ・選択）。カーソル位置に挿入</li>
+                  <li>Web・Teams・Word 等からコピーした画像（data-type なしの img）も画像として保存</li>
+                  <li>本文が解析できない場合も、表示中のテキストがあれば本文として保存（フォールバック）</li>
                   <li>スクリーンショット貼り付け時: ユニーク名自動生成</li>
                   <li>タグ入力（Enter/追加ボタン、オートコンプリート）</li>
                   <li>カスタム属性入力（キー・値ペア、オートコンプリート）</li>
@@ -1074,7 +1097,33 @@
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
                   <li>編集保存時に旧バージョンのスナップショット保存</li>
                   <li>履歴モーダルでバージョン一覧表示</li>
-                  <li>差分モーダルで変更前後を並列比較</li>
+                  <li>差分モーダルで変更前後を並列比較（コードブロックも比較対象）</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">8. エクスポート仕様</h4>
+                <table class="w-full text-sm border border-gray-200 mb-4">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">種類</th>
+                      <th class="px-4 py-3 text-left font-medium border-b border-gray-200">出力内容</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr><td class="px-4 py-3">一括JSON（一覧）</td><td class="px-4 py-3">knowledge_export_YYYYMMDD_HHMMSS.zip ＝ knowledge.json（exportedAt, count, items）＋ &lt;記事ID&gt;/images/・&lt;記事ID&gt;/files/</td></tr>
+                    <tr><td class="px-4 py-3">JSON（詳細）</td><td class="px-4 py-3">記事1件のJSON（id 含む）。添付がある場合は ZIP に &lt;記事ID&gt;/images/・files/ を同梱</td></tr>
+                    <tr><td class="px-4 py-3">CSV（詳細）</td><td class="px-4 py-3">項目/値の2列（先頭行は id）。画像・添付ファイル・添付フォルダの行を追加。BOM付きUTF-8</td></tr>
+                    <tr><td class="px-4 py-3">PDF（詳細）</td><td class="px-4 py-3">A4縦・余白15mm。モーダルで「タイトル / 概要（ID・カテゴリ・タグ・作成者・作成日時・更新日時） / カスタム属性 / 詳細（本文・コード・画像・添付ファイル名）」を選択。選択内容はブラウザに保存</td></tr>
+                  </tbody>
+                </table>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>本文テキスト中では画像を「[画像: ファイル名]」、添付を「[添付ファイル: ファイル名]」、コードを ```言語 のフェンスで表現</li>
+                  <li>同名ファイルは連番を付けて重複を回避し、ファイル名に使えない文字は置換</li>
+                </ul>
+
+                <h4 class="text-lg font-semibold text-gray-800 mb-2 mt-6">9. 初期化・エラー処理</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 mb-4">
+                  <li>初期化はステップ単位（ユーザー情報 → Domoユーザー/グループ → 記事 → コメント → 通知 → 更新履歴 → …）で実行し、失敗時は「アプリの初期化中にエラーが発生しました（ステップ名: 詳細）」を表示</li>
+                  <li>記事が0件かつ取得成功時のみサンプルデータを作成</li>
                 </ul>
               </div>
             </div>
@@ -1154,10 +1203,10 @@
                         <li>任意のファイル（PDF等）をドラッグ&amp;ドロップまたはファイル選択</li>
                         <li>投稿する</li>
                         <li>投稿した記事の詳細ページを開く</li>
-                        <li>ファイルブロックが表示されることを確認</li>
-                        <li>「ダウンロード」ボタンをクリック</li>
+                        <li>本文中の挿入位置にファイルリンクが表示されることを確認</li>
+                        <li>本文中のリンク、および「添付ファイル・画像」セクションの「ダウンロード」ボタンをクリック</li>
                       </ol>
-                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> ファイル名とダウンロードボタンが表示され、クリックでダウンロードが開始される</p>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 本文中と添付一覧の両方にファイル名が表示され、どちらからもダウンロードできる</p>
                       <p><span class="font-semibold text-red-700">NG条件:</span> ファイルが表示されない、ダウンロードできない</p>
                     </div>
                   </div>
@@ -1329,6 +1378,191 @@
                       <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 未読バッジが表示され、通知内容が正しく表示される</p>
                     </div>
                   </div>
+
+                  <!-- TC-011 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">最高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-011: 本文の保存（「内容を入力してください」誤検知防止）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> Web・Teams・Word からコピーした画像が保存対象外となり、本文が空と判定されて登録できないことがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームでタイトル・カテゴリを入力</li>
+                        <li>本文に Web ページからコピーした画像のみを貼り付けて「投稿する」</li>
+                        <li>別記事でテキストのみ、テキスト＋画像＋ファイル＋コードブロックの組み合わせでも投稿</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> いずれも保存され、詳細ページで入力した順序どおりに表示される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 「内容を入力してください」が表示される、要素が欠落する</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-012 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-012: 本文中の添付ファイルリンク表示（カーソル位置挿入）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> 本文の途中に挿入した添付ファイルが、詳細ページの本文に表示されないバグがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>編集画面で本文の途中にカーソルを置き、ファイル（.ps1 等）を追加して保存</li>
+                        <li>詳細ページを開く</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 挿入した位置にファイル名付きリンクが表示され、クリックでダウンロードできる</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 本文中にリンクが表示されない、位置がずれる</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-013 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-013: カテゴリ候補の表示・新規入力</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> フォームのカテゴリ一覧に既存カテゴリが表示されないバグがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>新規投稿フォームでカテゴリのプルダウンを開く</li>
+                        <li>「+」で新規カテゴリを入力して投稿し、再度新規投稿フォームを開く</li>
+                        <li>既存記事の編集画面を開く</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 既存記事のカテゴリが重複なく表示され、「経営」「総務」は表示されない。新規カテゴリは次回から候補に出る。編集時は記事のカテゴリが選択済み</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 候補が空、編集時にカテゴリが未選択になる</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-014 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded">高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-014: コードブロックの登録・表示・編集</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>「コードブロックを挿入」で JSON を選択し、インデント付きのJSONを入力（Tabキーも使用）</li>
+                        <li>投稿して詳細ページを開き「コピー」をクリック</li>
+                        <li>編集画面を開く</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> インデントが保持されて等幅表示され、コピーできる。編集画面でコードブロックとして復元される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> インデントが崩れる、通常テキストになる</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-015 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-015: 検索結果のJSON一括ダウンロード（ZIP）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>記事一覧でキーワードやフィルターで絞り込む</li>
+                        <li>「検索結果をJSONで一括ダウンロード（ZIP）」をクリック</li>
+                        <li>ZIPを展開して中身を確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> knowledge.json の件数が検索結果件数と一致し、各記事に id が含まれる。添付は &lt;記事ID&gt;/images・files に格納される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 件数不一致、添付の欠落</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-016 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-016: 記事単位のJSON / CSV ダウンロード</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>画像・添付ファイルを含む記事の詳細ページで「JSON」「CSV」をクリック</li>
+                        <li>ZIPを展開して中身を確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 本体ファイルに id と「[画像: ファイル名]」等の位置情報が含まれ、添付が &lt;記事ID&gt; フォルダに格納される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 画像情報の欠落、id が含まれない</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-017 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">中</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-017: PDF出力（項目選択）</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> ページをスクロールした状態で出力すると、PDFに詳細が含まれないバグがあった</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>長文・画像を含む記事の詳細ページを下までスクロール</li>
+                        <li>「PDF」をクリックし、モーダルで項目を選択して「PDFを出力」</li>
+                        <li>すべて解除した状態で「PDFを出力」が押せないことを確認</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 選択した項目のみがPDFに出力され、詳細（本文・画像）が欠落しない。次回は前回の選択が復元される</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 詳細が空、選択外の項目が出力される</p>
+                    </div>
+                  </div>
+
+                  <!-- TC-018 -->
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="test-case-toggle w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition flex justify-between items-center text-left">
+                      <div class="flex items-center gap-3">
+                        <span class="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">最高</span>
+                        <span class="font-semibold text-gray-900 text-sm">TC-018: 記事取得失敗時にサンプルデータを作成しない</span>
+                      </div>
+                      <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </button>
+                    <div class="test-case-content hidden px-4 py-4 bg-white text-sm">
+                      <p class="mb-2"><span class="font-semibold">背景:</span> 取得エラーを0件と誤認し、サンプルデータ作成を試みていた（404 / 403 発生時）</p>
+                      <p class="mb-2"><span class="font-semibold">手順:</span></p>
+                      <ol class="list-decimal list-inside ml-4 mb-2 space-y-1">
+                        <li>コレクション権限のないユーザー、または誤った proxyId でアプリを開く</li>
+                      </ol>
+                      <p class="mb-2"><span class="font-semibold text-green-700">期待結果:</span> 「記事データを取得できませんでした（…）」が表示され、サンプルデータは作成されない</p>
+                      <p><span class="font-semibold text-red-700">NG条件:</span> 「サンプルデータの作成」ステップでエラーになる、サンプル記事が登録される</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1346,6 +1580,7 @@
                   <li><a href="#manual-delete" class="hover:underline">記事を削除する</a></li>
                   <li><a href="#manual-like" class="hover:underline">いいね・コメント</a></li>
                   <li><a href="#manual-history" class="hover:underline">更新履歴を確認する</a></li>
+                  <li><a href="#manual-export" class="hover:underline">ダウンロード・PDF出力</a></li>
                   <li><a href="#manual-ranking" class="hover:underline">ランキングを見る</a></li>
                   <li><a href="#manual-permissions" class="hover:underline">権限設定について</a></li>
                   <li><a href="#manual-notes" class="hover:underline">注意事項</a></li>
@@ -1354,39 +1589,43 @@
                 <h3 id="manual-startup" class="text-xl font-semibold text-gray-900 mb-3 mt-8">初回起動</h3>
                 <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
                   <li>Domoのアプリページを開く</li>
-                  <li>初回はサンプルデータ（3件の記事）が自動作成される</li>
+                  <li>記事が1件もない場合は、サンプルデータ（3件の記事）が自動作成される</li>
                   <li>ヘッダー右上に現在のログインユーザー名が表示される</li>
+                  <li>「記事データを取得できませんでした」と表示される場合は、カードおよびAppDBコレクションへのアクセス権限を管理者に確認する</li>
                 </ol>
 
                 <h3 id="manual-read" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を読む</h3>
                 <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
-                  <li>「記事一覧」ページで読みたい記事カードをクリック</li>
+                  <li>「記事一覧」ページの表で読みたい記事の行をクリック</li>
                   <li>詳細ページで内容を確認</li>
-                  <li>添付ファイルは「ダウンロード」ボタンでダウンロード</li>
-                  <li>添付画像は画像下のリンクまたは「添付画像」セクションのDLボタンでダウンロード</li>
+                  <li>本文中の添付ファイルリンク、または「添付ファイル・画像」セクションの「ダウンロード」ボタンでダウンロード</li>
+                  <li>添付画像は「添付ファイル・画像」または「添付画像」セクションのDLボタンでダウンロード</li>
+                  <li>コードブロックは右上の「コピー」ボタンでクリップボードにコピー</li>
                 </ol>
 
                 <h3 id="manual-search" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を検索・絞り込む</h3>
                 <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
-                  <li>検索バーにキーワードを入力（タイトル・本文・タグ・カスタム属性を横断検索）</li>
+                  <li>検索バーにキーワードを入力（タイトル・本文・コードブロック・タグ・カスタム属性を横断検索）</li>
                   <li>カテゴリ・タグ・作成者でフィルター</li>
                   <li>「カスタム属性で絞り込み」の「+ 条件を追加」でカスタム属性フィルターを追加</li>
                   <li>並べ替えで表示順を変更</li>
+                  <li>絞り込み結果の件数は表の上に表示される</li>
                 </ol>
 
                 <h3 id="manual-post" class="text-xl font-semibold text-gray-900 mb-3 mt-8">記事を投稿する</h3>
                 <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
                   <li>「新規投稿」ボタンをクリック</li>
                   <li>タイトルを入力（必須）</li>
-                  <li>カテゴリを選択、または「+」ボタンで新規カテゴリを入力（必須）</li>
+                  <li>カテゴリを既存の一覧から選択、または「+」ボタンで新規カテゴリを入力（必須）</li>
                   <li>内容エディタにテキストを入力</li>
-                  <li>画像・ファイルの添付方法:
+                  <li>画像・ファイルの添付方法（カーソル位置に挿入され、記事でも同じ位置に表示される）:
                     <ul class="list-disc list-inside ml-6 mt-1 space-y-1">
                       <li>エディタ内でCtrl+Vでクリップボードから貼り付け</li>
                       <li>エディタ内にドラッグ&amp;ドロップ</li>
                       <li>「ファイルを選択」ボタンでファイル選択</li>
                     </ul>
                   </li>
+                  <li>JSONやコマンド例は「コードブロックを挿入」で追加し、言語を選択して入力（Tabキーでインデント）</li>
                   <li>タグを入力してEnterまたは「追加」ボタン（オートコンプリートあり）</li>
                   <li>カスタム属性を「+ 属性を追加」で追加</li>
                   <li>アクセス権限を設定（デフォルト: 全員が読取+編集）</li>
@@ -1420,6 +1659,13 @@
                   <li>バージョン一覧から「変更を確認」をクリック</li>
                   <li>変更前後の差分を確認</li>
                 </ol>
+
+                <h3 id="manual-export" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ダウンロード・PDF出力</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm text-gray-700 mb-6">
+                  <li><span class="font-medium">一括ダウンロード:</span> 記事一覧で絞り込み後「検索結果をJSONで一括ダウンロード（ZIP）」をクリック。knowledge.json と、記事IDごとのフォルダに添付ファイルが格納される</li>
+                  <li><span class="font-medium">記事単位:</span> 詳細ページの「JSON」「CSV」をクリック。添付がある場合はZIPで、記事IDフォルダに添付ファイルが格納される</li>
+                  <li><span class="font-medium">PDF:</span> 詳細ページの「PDF」をクリックし、出力する項目（タイトル・概要・カスタム属性・詳細）を選んで「PDFを出力」。選択内容は次回も引き継がれる</li>
+                </ul>
 
                 <h3 id="manual-ranking" class="text-xl font-semibold text-gray-900 mb-3 mt-8">ランキングを見る</h3>
                 <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-6">
@@ -1469,6 +1715,9 @@
                   <li>ファイル・画像はBase64形式でDomoのAppDBに保存されます</li>
                   <li>大きなファイルはAppDBの容量制限に注意してください</li>
                   <li>スクリーンショット貼り付け時は自動的にユニークなファイル名（screenshot_xxx.png）が付与されます</li>
+                  <li>Teams・SharePoint 等からコピーした画像は、元のURL参照として保存され、他のユーザーに表示されない場合があります。確実に保存するには、画像をファイルとして保存してからドラッグ&amp;ドロップまたは貼り付けしてください</li>
+                  <li>カテゴリ候補には「経営」「総務」は表示されません（既存記事のカテゴリは変更されません）</li>
+                  <li>アプリの利用には、カードの共有に加えて AppDB コレクションへのアクセス権限が必要です（権限がない場合は HTTP 403 エラー）</li>
                 </ul>
               </div>
             </div>
